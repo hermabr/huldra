@@ -114,7 +114,7 @@ class HuldraConfig:
             "yes",
         }
         self.cancelled_is_preempted = os.getenv(
-            "HULDRA_CANCELLED_IS_PREEMPTED", "1"
+            "HULDRA_CANCELLED_IS_PREEMPTED", "false"
         ).lower() in {"1", "true", "yes"}
 
     def _get_base_root(self: Self) -> Path:
