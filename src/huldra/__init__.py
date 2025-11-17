@@ -1,5 +1,4 @@
 import contextlib
-import dataclasses
 import datetime
 import enum
 import getpass
@@ -17,6 +16,7 @@ import textwrap
 import threading
 import time
 import traceback
+from abc import ABC, abstractmethod
 from pathlib import Path
 from typing import (
     Any,
@@ -34,6 +34,8 @@ from typing import (
     overload,
 )
 
+import chz
+import submitit
 from typing_extensions import dataclass_transform
 
 # =============================================================================
@@ -232,10 +234,10 @@ class HuldraSerializer:
         if isinstance(obj, _HuldraMissing):
             raise ValueError("Cannot serialize Huldra.MISSING")
 
-        if dataclasses.is_dataclass(obj):
+        if chz.is_chz(obj):
             result = {cls.CLASS_MARKER: cls.get_classname(obj)}
-            for field in dataclasses.fields(obj):
-                result[field.name] = cls.to_dict(getattr(obj, field.name))
+            for field_name in chz.chz_fields(obj):
+                result[field_name] = cls.to_dict(getattr(obj, field_name))
             return result
 
         if isinstance(obj, pathlib.Path):
@@ -260,13 +262,14 @@ class HuldraSerializer:
                 k: cls.from_dict(v) for k, v in data.items() if k != cls.CLASS_MARKER
             }
 
-            # Convert strings back to Path for Path-typed fields
-            for field in dataclasses.fields(data_class):
-                if field.type is pathlib.Path and isinstance(
-                    kwargs.get(field.name), str
-                ):
-                    kwargs[field.name] = pathlib.Path(kwargs[field.name])
+            path_types = (Path, pathlib.Path)
 
+            if chz.is_chz(data_class):
+                for name, field in chz.chz_fields(data_class).items():
+                    if field.final_type in path_types and isinstance(
+                        kwargs.get(name), str
+                    ):
+                        kwargs[name] = pathlib.Path(kwargs[name])
             return data_class(**kwargs)
 
         if isinstance(data, list):
@@ -285,13 +288,11 @@ class HuldraSerializer:
             if isinstance(item, _HuldraMissing):
                 raise ValueError("Cannot hash Huldra.MISSING")
 
-            if dataclasses.is_dataclass(item):
+            if chz.is_chz(item):
+                fields = chz.chz_fields(item)
                 return {
                     "__class__": cls.get_classname(item),
-                    **{
-                        f.name: canonicalize(getattr(item, f.name))
-                        for f in dataclasses.fields(item)
-                    },
+                    **{name: canonicalize(getattr(item, name)) for name in fields},
                 }
 
             if isinstance(item, dict):
@@ -341,18 +342,17 @@ class HuldraSerializer:
             pad = "" if not multiline else " " * indent
             next_indent = indent + (4 if multiline else 0)
 
-            if dataclasses.is_dataclass(item):
+            if chz.is_chz(item):
                 cls_path = cls.get_classname(item)
                 fields = [
-                    f"{f.name}={to_py_recursive(getattr(item, f.name), next_indent)}"
-                    for f in dataclasses.fields(item)
+                    f"{name}={to_py_recursive(getattr(item, name), next_indent)}"
+                    for name in chz.chz_fields(item)
                 ]
 
                 if multiline:
                     inner = (",\n" + " " * next_indent).join(fields)
                     return f"{cls_path}(\n{pad}    {inner}\n{pad})"
-                else:
-                    return f"{cls_path}({', '.join(fields)})"
+                return f"{cls_path}({', '.join(fields)})"
 
             if isinstance(item, enum.Enum):
                 return cls.get_classname(item)
@@ -735,16 +735,14 @@ class MetadataManager:
 # Core Huldra Class
 # =============================================================================
 
-R_co = TypeVar("R_co", covariant=True)
 
-
-class Huldra(Generic[R_co]):
+class Huldra[T](ABC):
     """
     Base class for cached computations with provenance tracking.
 
     Subclasses must implement:
-    - _create(self) -> R_co
-    - _load(self) -> R_co
+    - _create(self) -> T
+    - _load(self) -> T
     - _slug(self) -> str
     """
 
@@ -753,21 +751,19 @@ class Huldra(Generic[R_co]):
     # Configuration (can be overridden in subclasses)
     version_controlled: bool = False
 
-    def __post_init__(self: Self) -> None:
-        """Called after dataclass initialization."""
-        pass
-
     def _slug(self: Self) -> str:
         """Return the slug for this Huldra object (must be implemented by decorator)."""
         raise NotImplementedError("Slug not set - use @huldra decorator")
 
-    def _create(self: Self) -> R_co:
+    @abstractmethod
+    def _create(self: Self) -> T:
         """Compute and save the result (implement in subclass)."""
         raise NotImplementedError(
             f"{self.__class__.__name__}._create() not implemented"
         )
 
-    def _load(self: Self) -> R_co:
+    @abstractmethod
+    def _load(self: Self) -> T:
         """Load the result from disk (implement in subclass)."""
         raise NotImplementedError(f"{self.__class__.__name__}._load() not implemented")
 
@@ -817,53 +813,15 @@ class Huldra(Generic[R_co]):
         return MetadataManager.read_metadata(self.huldra_dir)
 
     @overload
-    def exists_or_create(
-        self: Self,
-        executor: None = ...,
-        *,
-        wait: Literal[True] = True,
-        on_job_id: None = ...,
-        max_requeues: Optional[int] = ...,
-    ) -> R_co: ...
+    def exists_or_create(self, executor: Any) -> T | submitit.Job[T]: ...
 
     @overload
-    def exists_or_create(
-        self: Self,
-        executor: None = ...,
-        *,
-        wait: None = ...,
-        on_job_id: None = ...,
-        max_requeues: Optional[int] = ...,
-    ) -> R_co: ...
-
-    @overload
-    def exists_or_create(
-        self: Self,
-        executor: Any,
-        *,
-        wait: Literal[True],
-        on_job_id: Optional[Callable[[Any], None]] = ...,
-        max_requeues: Optional[int] = ...,
-    ) -> R_co: ...
-
-    @overload
-    def exists_or_create(
-        self: Self,
-        executor: Any,
-        *,
-        wait: Literal[False],
-        on_job_id: Optional[Callable[[Any], None]] = ...,
-        max_requeues: Optional[int] = ...,
-    ) -> Optional[Any]: ...
+    def exists_or_create(self, executor: None = None) -> T: ...
 
     def exists_or_create(
         self: Self,
         executor: Any = None,
-        *,
-        wait: Optional[bool] = None,
-        on_job_id: Optional[Callable[[Any], None]] = None,
-        max_requeues: Optional[int] = None,
-    ) -> R_co | None:
+    ) -> T | submitit.Job[T]:
         """
         Ensure result exists, computing if necessary.
 
@@ -882,16 +840,17 @@ class Huldra(Generic[R_co]):
         directory = self.huldra_dir
         directory.mkdir(parents=True, exist_ok=True)
 
-        if wait is None:
-            wait = executor is None
+        # if wait is None:
+        #     wait = executor is None
 
-        if max_requeues is None:
-            max_requeues = CONFIG.max_requeues
+        # if max_requeues is None:
+        #     max_requeues = CONFIG.max_requeues
 
         # Fast path: already successful
         if StateManager.read_state(directory).get("status") == "success":
             try:
-                return self._load() if (executor is None or wait) else None
+                # return self._load() if (executor is None or wait) else None
+                return self._load()
             except Exception as e:
                 raise HuldraComputeError(
                     f"Failed to load result from {directory}",
@@ -923,14 +882,7 @@ class Huldra(Generic[R_co]):
         # Asynchronous execution with submitit
         adapter = SubmititAdapter(executor)
 
-        if not wait:
-            # Fire-and-forget mode
-            return self._submit_once(adapter, directory, on_job_id)
-        else:
-            # Blocking mode with auto-resubmit on preemption
-            return self._submit_and_wait_with_retries(
-                adapter, directory, on_job_id, max_requeues
-            )
+        return self._submit_once(adapter, directory, None)  # ty: ignore[invalid-return-type] # TODO: fix typing here
 
     def _submit_once(
         self,
@@ -989,7 +941,7 @@ class Huldra(Generic[R_co]):
         directory: Path,
         on_job_id: Optional[Callable[[Any], None]],
         max_requeues: int,
-    ) -> R_co:
+    ) -> T:
         """Submit job and wait, resubmitting on preemption up to max_requeues times."""
         attempts_left = max_requeues
 
@@ -1000,7 +952,7 @@ class Huldra(Generic[R_co]):
             # Success - load and return result
             if status == "success":
                 try:
-                    return self._load(directory)
+                    return self._load()
                 except Exception as e:
                     raise HuldraComputeError(
                         f"Failed to load result from {directory}",
@@ -1048,7 +1000,7 @@ class Huldra(Generic[R_co]):
 
             if status == "success":
                 try:
-                    return self._load(directory)
+                    return self._load()
                 except Exception as e:
                     raise HuldraComputeError(
                         f"Failed to load result from {directory}",
@@ -1347,21 +1299,23 @@ class Huldra(Generic[R_co]):
 T = TypeVar("T", bound=type)
 
 
-@dataclass_transform(field_specifiers=(dataclasses.field,), frozen_default=True)
+@dataclass_transform(
+    field_specifiers=(chz.field,), kw_only_default=True, frozen_default=True
+)
 def huldra(
     _cls: T | None = None,
     *,
     slug: str | Callable[[Any], str],
     version_controlled: bool = False,
-    **dataclass_kwargs: Any,
+    **huldra_kwargs: Any,
 ) -> Callable[[T], T] | T:
     """
-    Decorator to create a Huldra dataclass.
+    Decorator to create a Huldra chz class.
 
     Args:
         slug: Unique identifier for this Huldra type (string or callable)
         version_controlled: If True, store in data/huldra/git, else data/huldra/data
-        **dataclass_kwargs: Additional arguments passed to @dataclass
+        **huldra_kwargs: Additional arguments passed to @chz.chz
 
     Example:
         @huldra(slug="my-computation", version_controlled=True)
@@ -1384,9 +1338,17 @@ def huldra(
         if not issubclass(cls, Huldra):
             raise TypeError(f"{cls.__name__} must inherit from Huldra")
 
-        # Apply dataclass decorator
-        dataclass_kwargs.setdefault("frozen", True)
-        cls = dataclasses.dataclass(cls, **dataclass_kwargs)
+        chz_kwargs: dict[str, Any] = {}
+        for key in ("version", "typecheck"):
+            if key in huldra_kwargs:
+                chz_kwargs[key] = huldra_kwargs.pop(key)
+
+        if huldra_kwargs:
+            extra = ", ".join(sorted(huldra_kwargs))
+            raise TypeError(f"Unsupported huldra options: {extra}")
+
+        # Apply chz decorator
+        cls = chz.chz(cls, **chz_kwargs)  # ty: ignore[invalid-assignment]
 
         # Set slug method
         if isinstance(slug, str):
