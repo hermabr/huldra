@@ -38,6 +38,11 @@ import chz
 import submitit
 from typing_extensions import dataclass_transform
 
+try:  # Optional dependency
+    from pydantic import BaseModel
+except Exception:  # pragma: no cover
+    BaseModel = None  # type: ignore[assignment]
+
 # =============================================================================
 # Load .env file
 # =============================================================================
@@ -320,6 +325,12 @@ class HuldraSerializer:
 
             if isinstance(item, (str, int, float, bool)) or item is None:
                 return item
+
+            if BaseModel is not None and isinstance(item, BaseModel):
+                return {
+                    "__class__": cls.get_classname(item),
+                    **{k: canonicalize(v) for k, v in item.model_dump().items()},
+                }
 
             raise TypeError(f"Cannot hash type: {type(item)}")
 
