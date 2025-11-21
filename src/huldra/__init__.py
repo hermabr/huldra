@@ -303,7 +303,11 @@ class HuldraSerializer:
                 fields = chz.chz_fields(item)
                 return {
                     "__class__": cls.get_classname(item),
-                    **{name: canonicalize(getattr(item, name)) for name in fields},
+                    **{
+                        name: canonicalize(getattr(item, name))
+                        for name in fields
+                        if not name.startswith("_")  # <--- Added filter
+                    },
                 }
 
             if isinstance(item, dict):
