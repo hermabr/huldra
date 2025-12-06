@@ -124,7 +124,13 @@ class HuldraConfig:
     """Central configuration for Huldra behavior."""
 
     def __init__(self: Self):
-        self.base_root = self._get_base_root()
+        def _get_base_root() -> Path:
+            env = os.getenv("HULDRA_PATH")
+            if env:
+                return Path(env).expanduser().resolve()
+            return Path("data-huldra").resolve()
+
+        self.base_root = _get_base_root()
         self.poll_interval = float(os.getenv("HULDRA_POLL_INTERVAL_SECS", "10"))
         self.stale_timeout = float(os.getenv("HULDRA_STALE_AFTER_SECS", str(30 * 60)))
         self.max_requeues = int(os.getenv("HULDRA_PREEMPT_MAX", "5"))
@@ -137,18 +143,14 @@ class HuldraConfig:
             "HULDRA_CANCELLED_IS_PREEMPTED", "false"
         ).lower() in {"1", "true", "yes"}
 
-    def _get_base_root(self: Self) -> Path:
-        """Get base root directory for Huldra data."""
-        env = os.getenv("HULDRA_PATH")
-        if env:
-            return Path(env).expanduser().resolve()
-        return Path("data-huldra").resolve()
-
     def get_root(self: Self, version_controlled: bool = False) -> Path:
         """Get root directory for storage (version_controlled determines subdirectory)."""
         if version_controlled:
             return self.base_root / "git"
         return self.base_root / "data"
+
+    def get_raw_dir(self) -> Path:
+        return self.base_root / "raw"
 
 
 CONFIG = HuldraConfig()
