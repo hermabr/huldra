@@ -139,10 +139,11 @@ def configure_logging() -> None:
     ):
         console = RichHandler(
             level=_console_level(),
-            show_time=False,
-            show_path=False,
+            show_time=True,
+            show_path=True,
             rich_tracebacks=True,
             markup=False,
+            log_time_format="%H%M%S",
         )
         console.addFilter(_HuldraConsoleFilter())
         console.setFormatter(logging.Formatter("%(message)s"))
