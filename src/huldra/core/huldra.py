@@ -171,15 +171,20 @@ class Huldra[T](ABC):
 
     def exists(self: Self) -> bool:
         """Check if result exists and is valid."""
+        logger = get_logger()
         directory = self.huldra_dir
         state = StateManager.read_state(directory)
 
         if state.get("status") != "success":
+            logger.info("exists %s -> false", directory)
             return False
 
         try:
-            return self._validate()
+            ok = self._validate()
+            logger.info("exists %s -> %s", directory, "true" if ok else "false")
+            return ok
         except Exception:
+            logger.info("exists %s -> false", directory)
             return False
 
     def get_metadata(self: Self) -> Dict[str, Any]:
@@ -214,21 +219,21 @@ class Huldra[T](ABC):
             directory = self.huldra_dir
             directory.mkdir(parents=True, exist_ok=True)
             self._reconcile_stale_running(directory)
-            logger.debug(
-                "load_or_create: enter %s digest=%s dir=%s",
-                self.__class__.__name__,
-                self.hexdigest,
-                directory,
-            )
+            state0 = StateManager.read_state(directory)
+            status0 = state0.get("status")
+            if status0 == "success":
+                decision = "exists->load"
+            elif status0 in {"queued", "running"}:
+                decision = f"{status0}->wait"
+            else:
+                decision = "missing->create"
+            logger.info("load_or_create %s (%s)", directory, decision)
+            logger.debug("load_or_create: enter %s dir=%s", self.__class__.__name__, directory)
 
             # Fast path: already successful
             if StateManager.read_state(directory).get("status") == "success":
                 try:
-                    logger.debug(
-                        "load_or_create: %s digest=%s -> _load()",
-                        self.__class__.__name__,
-                        self.hexdigest,
-                    )
+                    logger.debug("load_or_create: %s -> _load()", self.__class__.__name__)
                     return self._load()
                 except Exception as e:
                     raise HuldraComputeError(
@@ -246,15 +251,13 @@ class Huldra[T](ABC):
                     if status == "success":
                         if created_here:
                             logger.debug(
-                                "load_or_create: %s digest=%s created -> return",
+                                "load_or_create: %s created -> return",
                                 self.__class__.__name__,
-                                self.hexdigest,
                             )
                             return cast(T, result)
                         logger.debug(
-                            "load_or_create: %s digest=%s success -> _load()",
+                            "load_or_create: %s success -> _load()",
                             self.__class__.__name__,
-                            self.hexdigest,
                         )
                         return self._load()
 
@@ -280,9 +283,8 @@ class Huldra[T](ABC):
             adapter = SubmititAdapter(executor)
 
             logger.debug(
-                "load_or_create: %s digest=%s -> submitit submit_once()",
+                "load_or_create: %s -> submitit submit_once()",
                 self.__class__.__name__,
-                self.hexdigest,
             )
             return self._submit_once(adapter, directory, None)  # ty: ignore[invalid-return-type] # TODO: fix typing here
 
@@ -301,6 +303,7 @@ class Huldra[T](ABC):
         on_job_id: Optional[Callable[[Any], None]],
     ) -> Optional[Any]:
         """Submit job once without waiting (fire-and-forget mode)."""
+        logger = get_logger()
         state = StateManager.read_state(directory)
 
         # If already queued or running, return existing job
@@ -313,7 +316,7 @@ class Huldra[T](ABC):
 
         if lock_fd is None:
             # Someone else is submitting, wait briefly and return their job
-            print("waiting on lock")
+            logger.debug("submit: waiting for submit lock %s", directory)
             time.sleep(0.5)
             return adapter.load_job(directory)
 
@@ -367,9 +370,8 @@ class Huldra[T](ABC):
             if status == "success":
                 try:
                     logger.debug(
-                        "load_or_create: %s digest=%s submitit success -> _load()",
+                        "load_or_create: %s submitit success -> _load()",
                         self.__class__.__name__,
-                        self.hexdigest,
                     )
                     return self._load()
                 except Exception as e:
@@ -420,8 +422,7 @@ class Huldra[T](ABC):
                     if final_status:
                         StateManager.write_state(directory, status=final_status)
                 else:
-                    # No job handle, just poll
-                    print("no job handle, just poll")
+                    # No job handle, just poll silently
                     time.sleep(HULDRA_CONFIG.poll_interval)
                 continue
 
@@ -454,7 +455,11 @@ class Huldra[T](ABC):
             # Preempted - retry if we have attempts left
             if status == "preempted" and attempts_left > 0:
                 attempts_left -= 1
-                print(f"Job preempted, resubmitting ({attempts_left} attempts left)...")
+                logger.info(
+                    "preempted %s (resubmit, %d attempts left)",
+                    directory,
+                    attempts_left,
+                )
                 continue
 
             # Failed or out of retries
@@ -498,7 +503,6 @@ class Huldra[T](ABC):
                     StateManager.release_lock(lock_fd, lock_path)
             else:
                 # Someone else submitted, wait briefly
-                print("someone else submitted. waiting")
                 time.sleep(0.5)
 
         # Wait for completion
@@ -531,7 +535,6 @@ class Huldra[T](ABC):
             if status in {"success", "failed", "preempted", "cancelled"}:
                 return cast(str, status)
 
-            print("poll until done")
             time.sleep(HULDRA_CONFIG.poll_interval)
 
     def _worker_entry(self: Self) -> None:
@@ -543,6 +546,7 @@ class Huldra[T](ABC):
 
             lock_path = directory / StateManager.COMPUTE_LOCK
             lock_fd = None
+            logged_wait = False
             while lock_fd is None:
                 lock_fd = StateManager.try_lock(lock_path)
                 if lock_fd is not None:
@@ -558,7 +562,9 @@ class Huldra[T](ABC):
                 if status == "cancelled":
                     continue
 
-                print("someone else is computing. waiting for them")
+                if not logged_wait:
+                    logger.debug("compute: waiting for compute lock %s", directory)
+                    logged_wait = True
                 time.sleep(HULDRA_CONFIG.poll_interval)
 
             try:
@@ -592,16 +598,14 @@ class Huldra[T](ABC):
                 try:
                     # Run computation
                     logger.debug(
-                        "_create: begin %s digest=%s dir=%s",
+                        "_create: begin %s dir=%s",
                         self.__class__.__name__,
-                        self.hexdigest,
                         directory,
                     )
                     self._create()
                     logger.debug(
-                        "_create: ok %s digest=%s dir=%s",
+                        "_create: ok %s dir=%s",
                         self.__class__.__name__,
-                        self.hexdigest,
                         directory,
                     )
                     StateManager.write_state(directory, status="success")
@@ -665,9 +669,13 @@ class Huldra[T](ABC):
         directory = self.huldra_dir
         lock_path = directory / StateManager.COMPUTE_LOCK
 
-        # Try to acquire compute lock
-        lock_fd = StateManager.try_lock(lock_path)
-        if lock_fd is None:
+        lock_fd = None
+        logged_wait = False
+        while lock_fd is None:
+            lock_fd = StateManager.try_lock(lock_path)
+            if lock_fd is not None:
+                break
+
             # Someone else is computing, wait for them
             while True:
                 self._check_timeout(start_time)
@@ -681,8 +689,13 @@ class Huldra[T](ABC):
                 if status == "cancelled":
                     break
 
-                print("waiting for", directory)
+                if not logged_wait:
+                    logger.debug("compute: waiting for compute lock %s", directory)
+                    logged_wait = True
                 time.sleep(HULDRA_CONFIG.poll_interval)
+
+            # Dependency got cancelled (stale lease) so retry lock acquisition.
+            lock_fd = None
 
         try:
             # Create metadata
