@@ -2,6 +2,7 @@ import contextlib
 import contextvars
 import datetime
 import logging
+import os
 import threading
 from pathlib import Path
 from typing import Any, Generator
@@ -99,22 +100,53 @@ class _HuldraScopeFilter(logging.Filter):
         return record.name == "huldra" or record.name.startswith("huldra.")
 
 
+class _HuldraConsoleFilter(logging.Filter):
+    """Only show huldra namespace logs on console."""
+
+    def filter(self, record: logging.LogRecord) -> bool:
+        return record.name == "huldra" or record.name.startswith("huldra.")
+
+
+def _console_level() -> int:
+    level = os.getenv("HULDRA_LOG_LEVEL", "INFO").upper()
+    return logging.getLevelNamesMapping().get(level, logging.INFO)
+
+
 def configure_logging() -> None:
     """
-    Install a context-aware file handler on the root logger (idempotent).
+    Install context-aware file logging + rich console logging (idempotent).
 
     With this installed, any stdlib logger (e.g. `logging.getLogger(__name__)`)
     that propagates to the root logger will be written to the current holder's
     `huldra.log` while a holder is active.
     """
     root = logging.getLogger()
-    if any(isinstance(h, _HuldraContextFileHandler) for h in root.handlers):
-        return
+    if not any(isinstance(h, _HuldraContextFileHandler) for h in root.handlers):
+        handler = _HuldraContextFileHandler(level=logging.DEBUG)
+        handler.addFilter(_HuldraScopeFilter())
+        handler.setFormatter(
+            _HuldraLogFormatter("%(asctime)s [%(levelname)s] %(message)s")
+        )
+        root.addHandler(handler)
 
-    handler = _HuldraContextFileHandler(level=logging.DEBUG)
-    handler.addFilter(_HuldraScopeFilter())
-    handler.setFormatter(_HuldraLogFormatter("%(asctime)s [%(levelname)s] %(message)s"))
-    root.addHandler(handler)
+    try:
+        from rich.logging import RichHandler  # type: ignore
+    except Exception:  # pragma: no cover
+        RichHandler = None  # type: ignore
+
+    if RichHandler is not None and not any(
+        isinstance(h, RichHandler) for h in root.handlers
+    ):
+        console = RichHandler(
+            level=_console_level(),
+            show_time=False,
+            show_path=False,
+            rich_tracebacks=True,
+            markup=False,
+        )
+        console.addFilter(_HuldraConsoleFilter())
+        console.setFormatter(logging.Formatter("%(message)s"))
+        root.addHandler(console)
 
 
 def get_logger() -> logging.Logger:
@@ -147,4 +179,3 @@ def log(message: str, *, level: str = "INFO") -> Path:
     configure_logging()
     get_logger().log(level_no, message)
     return log_path
-

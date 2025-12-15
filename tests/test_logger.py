@@ -2,6 +2,7 @@ import json
 import logging
 
 import huldra
+from rich.logging import RichHandler
 
 
 class InternetContent(huldra.Huldra[int]):
@@ -53,3 +54,16 @@ def test_log_without_holder_defaults_to_base_root(huldra_tmp_root) -> None:
     log_path = huldra.log("no-holder")
     assert log_path == huldra.HULDRA_CONFIG.base_root / "huldra.log"
     assert "no-holder" in log_path.read_text()
+
+
+def test_configure_logging_rich_handler_is_idempotent(huldra_tmp_root) -> None:
+    root = logging.getLogger()
+    before = sum(isinstance(h, RichHandler) for h in root.handlers)
+
+    huldra.configure_logging()
+    after = sum(isinstance(h, RichHandler) for h in root.handlers)
+    huldra.configure_logging()
+    after2 = sum(isinstance(h, RichHandler) for h in root.handlers)
+
+    assert after >= before
+    assert after2 == after
