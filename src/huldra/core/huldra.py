@@ -145,12 +145,11 @@ class Huldra[T](ABC):
     @property
     def raw_dir(self: Self) -> Path:
         """
-        Get the raw directory for this Huldra object.
+        Get the raw directory for Huldra.
 
-        This is intended for large, non-versioned byproducts or inputs you want
-        colocated with the object but separated from the main artifact directory.
+        This is intended for large, non-versioned byproducts or inputs.
         """
-        return HULDRA_CONFIG.raw_dir / self.__class__._namespace() / self.hexdigest
+        return HULDRA_CONFIG.raw_dir
 
     def to_dict(self: Self) -> Dict[str, Any]:
         """Convert to dictionary."""
