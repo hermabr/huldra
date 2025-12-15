@@ -122,6 +122,14 @@ The root defaults to `./data-huldra/` and can be overridden:
 
 You can also point to a “version controlled” root by setting `version_controlled = True` on a subclass.
 
+## Raw directory
+
+Huldra also exposes a shared “raw” directory:
+
+- `self.raw_dir == huldra.HULDRA_CONFIG.raw_dir` (defaults to `<HULDRA_PATH>/raw`)
+
+Use this for large, non-versioned inputs/outputs. If you want per-object isolation, create a subfolder yourself, e.g. `self.raw_dir / self.hexdigest / "file.ext"`.
+
 ## Logging (Hydra-style)
 
 Huldra installs a stdlib `logging` handler on the *root logger* that writes to:
