@@ -163,7 +163,7 @@ huldra.configure_logging()
 
 Control console verbosity with:
 
-- `HULDRA_LOG_LEVEL` (default: `DEBUG`)
+- `HULDRA_LOG_LEVEL` (default: `INFO`)
 
 Note: `huldra.log` files remain detailed and include timestamps + `[LEVEL]` for auditing/debugging.
 

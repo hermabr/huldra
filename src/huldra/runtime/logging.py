@@ -109,7 +109,7 @@ class _HuldraConsoleFilter(logging.Filter):
 
 
 def _console_level() -> int:
-    level = os.getenv("HULDRA_LOG_LEVEL", "DEBUG").upper()
+    level = os.getenv("HULDRA_LOG_LEVEL", "INFO").upper()
     return logging.getLevelNamesMapping().get(level, logging.INFO)
 
 
