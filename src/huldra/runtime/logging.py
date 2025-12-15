@@ -136,7 +136,7 @@ class _HuldraRichConsoleHandler(logging.Handler):
         level_style = self._level_style(record.levelno)
         timestamp = datetime.datetime.fromtimestamp(
             record.created, tz=datetime.timezone.utc
-        ).strftime("%H%M%S")
+        ).strftime("%H:%M:%S")
 
         filename = Path(record.pathname).name if record.pathname else "<unknown>"
         location = f"{filename}:{record.lineno}"
