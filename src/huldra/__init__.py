@@ -4,6 +4,7 @@ import enum
 import getpass
 import hashlib
 import importlib
+import inspect
 import json
 import os
 import pathlib
@@ -897,8 +898,10 @@ class Huldra[T](ABC):
         # Synchronous execution
         if executor is None:
             try:
-                status = self._run_locally(start_time=start_time)
+                status, created_here, result = self._run_locally(start_time=start_time)
                 if status == "success":
+                    if created_here:
+                        return cast(T, result)
                     return self._load()
 
                 state = StateManager.read_state(directory)
@@ -1248,8 +1251,8 @@ class Huldra[T](ABC):
 
         return info
 
-    def _run_locally(self: Self, start_time: float) -> str:
-        """Run computation locally, return final status."""
+    def _run_locally(self: Self, start_time: float) -> tuple[str, bool, T | None]:
+        """Run computation locally, returning (status, created_here, result)."""
         directory = self.huldra_dir
         lock_path = directory / StateManager.COMPUTE_LOCK
 
@@ -1263,7 +1266,7 @@ class Huldra[T](ABC):
                 status = state.get("status")
 
                 if status in {"success", "failed", "preempted"}:
-                    return cast(str, status)
+                    return cast(str, status), False, None
 
                 if status == "running" and StateManager.is_stale(
                     directory, HULDRA_CONFIG.stale_timeout
@@ -1306,9 +1309,9 @@ class Huldra[T](ABC):
 
             try:
                 # Run the computation
-                self._create()
+                result = self._create()
                 StateManager.write_state(directory, status="success")
-                return "success"
+                return "success", True, result
             except Exception as e:
                 # If it failed, always print a colored traceback
                 _print_colored_traceback(e)
@@ -1316,14 +1319,14 @@ class Huldra[T](ABC):
                 # Check if we were preempted
                 current_state = StateManager.read_state(directory)
                 if current_state.get("status") == "preempted":
-                    return "preempted"
+                    return "preempted", False, None
 
                 # Record failure (plain text in file)
                 tb = "".join(traceback.format_exception(type(e), e, e.__traceback__))
                 StateManager.write_state(
                     directory, status="failed", reason=str(e), traceback=tb
                 )
-                return "failed"
+                return "failed", False, None
             finally:
                 stop_heartbeat()
         finally:
@@ -1407,6 +1410,36 @@ def huldra(
         # Verify inheritance
         if not issubclass(cls, Huldra):
             raise TypeError(f"{cls.__name__} must inherit from Huldra")
+
+        # Python 3.14+ may not populate `__annotations__` in `cls.__dict__` (PEP 649).
+        # `chz` expects annotations to exist for every `chz.field()` attribute, so we
+        # materialize them and (as a last resort) fill missing ones with `Any`.
+        try:
+            annotations = dict(getattr(cls, "__annotations__", {}) or {})
+        except Exception:
+            annotations = {}
+
+        try:
+            materialized = inspect.get_annotations(cls, eval_str=False)
+        except TypeError:  # pragma: no cover
+            materialized = inspect.get_annotations(cls)
+        except Exception:
+            materialized = {}
+
+        if materialized:
+            annotations.update(materialized)
+
+        try:
+            from chz.data_model import Field as FieldType  # type: ignore
+        except Exception:  # pragma: no cover
+            FieldType = None
+        if FieldType is not None:
+            for name, value in cls.__dict__.items():
+                if isinstance(value, FieldType) and name not in annotations:
+                    annotations[name] = Any
+
+        if annotations:
+            type.__setattr__(cls, "__annotations__", annotations)
 
         chz_kwargs: dict[str, Any] = {}
         for key in ("version", "typecheck"):
