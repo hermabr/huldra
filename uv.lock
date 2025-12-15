@@ -34,7 +34,7 @@ wheels = [
 
 [[package]]
 name = "huldra"
-version = "0.1.0"
+version = "0.1.1"
 source = { editable = "." }
 dependencies = [
     { name = "chz" },
@@ -46,6 +46,7 @@ dependencies = [
 
 [package.dev-dependencies]
 dev = [
+    { name = "pytest" },
     { name = "ruff" },
     { name = "ty" },
 ]
@@ -55,7 +56,7 @@ test = [
 
 [package.metadata]
 requires-dist = [
-    { name = "chz", specifier = ">=0.3.1" },
+    { name = "chz", specifier = ">=0.4.0" },
     { name = "cloudpickle", specifier = ">=3.1.1" },
     { name = "python-dotenv", specifier = ">=1.0.0" },
     { name = "rich", specifier = ">=14.2.0" },
@@ -64,6 +65,7 @@ requires-dist = [
 
 [package.metadata.requires-dev]
 dev = [
+    { name = "pytest", specifier = ">=9.0.2" },
     { name = "ruff", specifier = ">=0.14.9" },
     { name = "ty", specifier = ">=0.0.1a34" },
 ]
