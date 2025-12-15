@@ -132,7 +132,7 @@ Use this for large, non-versioned inputs/outputs. If you want per-object isolati
 
 ## Logging (Hydra-style)
 
-Huldra installs a stdlib `logging` handler on the *root logger* that writes to:
+Huldra installs stdlib `logging` handlers on the *root logger*:
 
 - `current_holder.huldra_dir / "huldra.log"` while a holder is active
 
@@ -147,8 +147,12 @@ log.info("hello from my pipeline")
 Huldra automatically tracks which holder is active during `load_or_create()`, so nested
 dependencies log into their own folders and then logging reverts back to the parent.
 
-Huldra also emits automatic DEBUG logs for every `load_or_create()` call and whether it
-ran `_load()` or `_create()`.
+By default, Huldra also logs to the console using Rich in a compact, single-line format:
+
+- `HHMMSS file.py:line message` (no explicit `INFO`/`DEBUG` text)
+- `file.py:line` is colored by level (debug/info/warn/error)
+
+Huldra emits an INFO summary per call, e.g. `load_or_create <path> (missing->create|exists->load|running->wait)`.
 
 If you want to install the handler eagerly (optional), call:
 
@@ -156,6 +160,12 @@ If you want to install the handler eagerly (optional), call:
 import huldra
 huldra.configure_logging()
 ```
+
+Control console verbosity with:
+
+- `HULDRA_LOG_LEVEL` (default: `DEBUG`)
+
+Note: `huldra.log` files remain detailed and include timestamps + `[LEVEL]` for auditing/debugging.
 
 ## Metadata and state
 
