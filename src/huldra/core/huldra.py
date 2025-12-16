@@ -136,6 +136,37 @@ class Huldra[T](ABC):
         """Validate that result is complete and correct (override if needed)."""
         return True
 
+    def _invalidate_cached_success(
+        self: Self, directory: Path, *, reason: str
+    ) -> None:
+        logger = get_logger()
+        logger.warning(
+            "invalidate %s %s %s (%s)",
+            self.__class__.__name__,
+            self.hexdigest,
+            directory,
+            reason,
+        )
+
+        with contextlib.suppress(Exception):
+            (directory / StateManager.SUCCESS_MARKER).unlink(missing_ok=True)
+
+        now = datetime.datetime.now(datetime.timezone.utc).isoformat(
+            timespec="seconds"
+        )
+
+        def mutate(state: dict[str, Any]) -> None:
+            state["result"] = {
+                "status": "absent",
+                "invalidated_at": now,
+                "reason": reason,
+            }
+
+        StateManager.update_state(directory, mutate)
+        StateManager.append_event(
+            directory, {"type": "result_invalidated", "reason": reason}
+        )
+
     @property
     def hexdigest(self: Self) -> str:
         """Compute hash of this object."""
@@ -237,6 +268,19 @@ class Huldra[T](ABC):
                 adapter0 = SubmititAdapter(executor) if executor is not None else None
                 self._reconcile(directory, adapter=adapter0)
                 state0 = StateManager.read_state(directory)
+                if StateManager.is_success(state0):
+                    try:
+                        if not self._validate():
+                            self._invalidate_cached_success(
+                                directory, reason="_validate returned false"
+                            )
+                            state0 = StateManager.read_state(directory)
+                    except Exception as e:
+                        self._invalidate_cached_success(
+                            directory,
+                            reason=f"_validate raised {type(e).__name__}: {e}",
+                        )
+                        state0 = StateManager.read_state(directory)
                 result0 = _as_dict(state0.get("result"))
                 attempt0 = _as_dict(state0.get("attempt"))
                 result_status0 = result0.get("status")
@@ -262,16 +306,17 @@ class Huldra[T](ABC):
                     },
                 )
                 logger.debug(
-                    "load_or_create %s (%s) %s %s",
+                    "load_or_create %s %s %s (%s)",
                     self.__class__.__name__,
-                    decision,
                     self.hexdigest,
                     directory,
+                    decision,
                     extra={"huldra_action_color": action_color},
                 )
 
                 # Fast path: already successful
-                if StateManager.is_success(StateManager.read_state(directory)):
+                state_now = StateManager.read_state(directory)
+                if StateManager.is_success(state_now):
                     try:
                         result = self._load()
                         ok = True
