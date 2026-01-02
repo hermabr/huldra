@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from my_project.pipelines import TrainModel
+from my_project.pipelines import PrepareDataset, TrainModel
 
 import huldra
 
@@ -15,7 +15,7 @@ def main() -> None:
     huldra.set_huldra_root(examples_root / ".huldra")
     # huldra.HULDRA_CONFIG.ignore_git_diff = True
 
-    obj = TrainModel(lr=3e-4, steps=2_000)
+    obj = TrainModel(lr=3e-4, steps=2_000, dataset=PrepareDataset(name="mydata"))
     artifact = obj.load_or_create()
     print("artifact:", artifact)
     print("artifact dir:", obj.huldra_dir)

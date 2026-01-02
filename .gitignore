@@ -215,3 +215,15 @@ __marimo__/
 # Streamlit
 .streamlit/secrets.toml
 **/.huldra/data
+
+dashboard-frontend/node_modules/
+dashboard-frontend/src/routeTree.gen.ts
+dashboard-frontend/src/api/
+
+e2e/node_modules/
+e2e/test-results/
+e2e/playwright-report/
+
+*.tsbuildinfo
+orval.config.js
+vite.config.js

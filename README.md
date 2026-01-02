@@ -24,11 +24,13 @@ pip install huldra
 
 ## Quickstart
 
-1) Subclass `huldra.Huldra[T]`
-2) Implement:
+1. Subclass `huldra.Huldra[T]`
+2. Implement:
+
 - `_create(self) -> T` (compute and write outputs into `self.huldra_dir`)
 - `_load(self) -> T` (load outputs back from `self.huldra_dir`)
-3) Call `load_or_create()`
+
+3. Call `load_or_create()`
 
 Example (define the pipeline in an importable module, and call it from a separate script):
 
@@ -132,7 +134,7 @@ Use this for large, non-versioned inputs/outputs. If you want per-object isolati
 
 ## Logging (Hydra-style)
 
-Huldra installs stdlib `logging` handlers on the *root logger*:
+Huldra installs stdlib `logging` handlers on the _root logger_:
 
 - `current_holder.huldra_dir / ".huldra" / "huldra.log"` while a holder is active
 
@@ -208,3 +210,28 @@ Local `.env` loading is supported if `python-dotenv` is installed.
 
 - Prototype status: APIs and on-disk formats may change
 - Not a workflow scheduler; it’s a lightweight caching layer for Python code
+
+# TODO
+
+- [ ] add support for building to wheel
+- [ ] remove all use of typing.Any
+- [ ] remove the custom tailwind colors
+- [ ] understand what absent status is
+- [ ] make sure the end to end tests use actual data (e.g., running some script to generate data inside data-huldra)
+- [ ] build wheels similar to python-react
+- [ ] check if i always have access to the huldra.dashboard even if i only add only `uv add huldra` and not `uv add huldra[dashboard]`
+- [ ] make the conftest tests use actual huldra code rather than manually making the json objects
+  - [ ] make multiple different experiments with dependencies
+- [ ] make the dashboard support going into an experiment where it should show the full config including the option to toggle in and out one part and click to go into that child experiment
+- [ ] support seeing all children
+- [ ] support showing which files and add viewer for simple formats like any parquet or json/jsonl
+- [ ] see the logs of the experiments
+- [ ] support rerunning an experiment
+- [ ] support making graphs/charts. will need to decide if this needs to be from python or if we want it to be in react (might want python since this saves all the files)
+- [ ] rename hexdigest and maybe make it a private method (e.g. \_hexdigest)
+- [ ] show what is a subclass of what
+- [ ] see nice dags of everything that depends on each other (maybe also with subclasses)
+- [ ] add support for making experiments from the ui (and have it write the code to some folder in the directory before running)
+- [ ] throw/assert/raise on unexpected behavior rather than trying to manually handle it
+- [ ] support migrating, such as when adding a field
+- [ ] show which experiments are version controlled and not

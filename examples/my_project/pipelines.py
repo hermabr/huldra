@@ -12,14 +12,22 @@ log = logging.getLogger(__name__)
 class TrainModel(huldra.Huldra[Path]):
     lr: float = huldra.chz.field(default=3e-4)
     steps: int = huldra.chz.field(default=2_000)
+    dataset: PrepareDataset
 
     def _create(self) -> Path:
         log.info("training model lr=%s steps=%s", self.lr, self.steps)
         (self.huldra_dir / "metrics.json").write_text(
-            json.dumps({"lr": self.lr, "steps": self.steps}, indent=2)
+            json.dumps(
+                {
+                    "lr": self.lr,
+                    "steps": self.steps,
+                    "dataset": str(self.dataset.load_or_create()),
+                },
+                indent=2,
+            )
         )
-        assert False, "Darn!"
         ckpt = self.huldra_dir / "checkpoint.bin"
+        __import__("time").sleep(15)
         ckpt.write_bytes(b"fake-checkpoint-bytes")
         return ckpt
 
