@@ -53,11 +53,11 @@ def test_log_routes_to_current_holder_dir(huldra_tmp_root) -> None:
     assert "video:after" in video_log
     assert "internet:download" not in video_log
     assert (
-        f"dep: begin {obj.content.__class__.__name__} {obj.content.hexdigest}"
+        f"dep: begin {obj.content.__class__.__name__} {obj.content._huldra_hash}"
         in video_log
     )
     assert (
-        f"dep: end {obj.content.__class__.__name__} {obj.content.hexdigest} (ok)"
+        f"dep: end {obj.content.__class__.__name__} {obj.content._huldra_hash} (ok)"
         in video_log
     )
     assert video_log.index("video:before") < video_log.index("video:after")
@@ -98,7 +98,7 @@ def test_load_or_create_does_not_log_on_cache_hit(
     text = (obj.huldra_dir / ".huldra" / "huldra.log").read_text()
     assert text.count("------------------") == 1
     assert text.count("load_or_create ") == 1
-    assert f"load_or_create {obj.__class__.__name__} {obj.hexdigest}" in text
+    assert f"load_or_create {obj.__class__.__name__} {obj._huldra_hash}" in text
     assert str(obj.huldra_dir) in text
     assert text.count("_create: ok ") == 1
 

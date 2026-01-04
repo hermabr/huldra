@@ -1,5 +1,5 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { useGetExperimentApiExperimentsNamespaceHexdigestGet } from "../api/endpoints/api/api";
+import { useGetExperimentApiExperimentsNamespaceHuldraHashGet } from "../api/endpoints/api/api";
 import { StatusBadge } from "../components/StatusBadge";
 
 function MetadataSection({ metadata }: { metadata: Record<string, unknown> }) {
@@ -57,17 +57,17 @@ function MetadataSection({ metadata }: { metadata: Record<string, unknown> }) {
   );
 }
 
-export const Route = createFileRoute("/experiments/$namespace/$hexdigest")({
+export const Route = createFileRoute("/experiments/$namespace/$huldra_hash")({
   component: ExperimentDetailPage,
 });
 
 function ExperimentDetailPage() {
-  const { namespace, hexdigest } = Route.useParams();
+  const { namespace, huldra_hash } = Route.useParams();
   const {
     data: experiment,
     isLoading,
     error,
-  } = useGetExperimentApiExperimentsNamespaceHexdigestGet(namespace, hexdigest);
+  } = useGetExperimentApiExperimentsNamespaceHuldraHashGet(namespace, huldra_hash);
 
   if (isLoading) {
     return (
@@ -134,7 +134,7 @@ function ExperimentDetailPage() {
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
           <div>
             <span className="text-slate-500 block">Hash</span>
-            <code className="text-white font-mono">{experiment.hexdigest}</code>
+            <code className="text-white font-mono">{experiment.huldra_hash}</code>
           </div>
           <div>
             <span className="text-slate-500 block">Attempt #</span>

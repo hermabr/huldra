@@ -6,23 +6,8 @@
 
 ## Code Quality
 
-### Typing
-
-- [x] Remove unnecessary use of `typing.Any` (some uses for truly dynamic data are acceptable)
-  - `src/huldra/core/huldra.py` - uses `Any` for chz kwargs, signal handlers, JSON data
-  - `src/huldra/storage/metadata.py` - uses `Any` for JSON metadata dicts
-  - `src/huldra/storage/state.py` - uses `Any` for JSON state data
-  - `src/huldra/adapters/submitit.py` - uses `Any` for submitit executor/job objects
-  - `src/huldra/serialization/serializer.py` - uses `Any` for generic serialization
-  - `src/huldra/runtime/logging.py` - uses `Any` for holder objects
-  - `src/huldra/dashboard/` - uses `Any` for JSON API data
-- [x] Change `typing.Optional[T]` to `T | None`
-- [x] Change `typing.List` and `typing.Dict` to `list` and `dict` (Python 3.9+)
-
-### API Design
-- [ ] Rename `hexdigest` to a name that makes more sense (consider making it private)
-
 ### Error Handling
+
 - [ ] Throw/assert/raise on unexpected behavior rather than manual handling. This means every time something unexpected happens it simply crashes and i never use try/catch or returning None to handle unexpected behavior.
 
 ## Testing

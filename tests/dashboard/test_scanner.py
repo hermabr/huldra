@@ -57,8 +57,17 @@ def test_scan_experiments_sorted_by_updated_at(temp_huldra_root: Path) -> None:
         attempt_status="success",
     )
     # Modify the state file to have an older timestamp
-    older_state = temp_huldra_root / "data" / "test" / "Experiment" / "older" / ".huldra" / "state.json"
+    older_state = (
+        temp_huldra_root
+        / "data"
+        / "test"
+        / "Experiment"
+        / "older"
+        / ".huldra"
+        / "state.json"
+    )
     import json
+
     state_data = json.loads(older_state.read_text())
     state_data["updated_at"] = "2024-01-01T00:00:00+00:00"
     older_state.write_text(json.dumps(state_data))
@@ -70,7 +79,15 @@ def test_scan_experiments_sorted_by_updated_at(temp_huldra_root: Path) -> None:
         result_status="success",
         attempt_status="success",
     )
-    newer_state = temp_huldra_root / "data" / "test" / "Experiment" / "newer" / ".huldra" / "state.json"
+    newer_state = (
+        temp_huldra_root
+        / "data"
+        / "test"
+        / "Experiment"
+        / "newer"
+        / ".huldra"
+        / "state.json"
+    )
     state_data = json.loads(newer_state.read_text())
     state_data["updated_at"] = "2025-06-01T00:00:00+00:00"
     newer_state.write_text(json.dumps(state_data))
@@ -78,8 +95,8 @@ def test_scan_experiments_sorted_by_updated_at(temp_huldra_root: Path) -> None:
     experiments = scan_experiments()
     assert len(experiments) == 2
     # Newer should come first
-    assert experiments[0].hexdigest == "newer"
-    assert experiments[1].hexdigest == "older"
+    assert experiments[0].huldra_hash == "newer"
+    assert experiments[1].huldra_hash == "older"
 
 
 def test_get_experiment_detail_found(populated_huldra_root: Path) -> None:
@@ -87,7 +104,7 @@ def test_get_experiment_detail_found(populated_huldra_root: Path) -> None:
     detail = get_experiment_detail("my_project.pipelines.TrainModel", "abc123def456")
     assert detail is not None
     assert detail.namespace == "my_project.pipelines.TrainModel"
-    assert detail.hexdigest == "abc123def456"
+    assert detail.huldra_hash == "abc123def456"
     assert detail.result_status == "success"
     assert detail.metadata is not None
     assert "state" in detail.model_dump()
@@ -168,5 +185,3 @@ def test_experiment_summary_class_name(temp_huldra_root: Path) -> None:
     experiments = scan_experiments()
     assert len(experiments) == 1
     assert experiments[0].class_name == "MyModel"
-
-

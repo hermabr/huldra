@@ -42,10 +42,12 @@ async def list_experiments(
     return ExperimentList(experiments=experiments, total=total)
 
 
-@router.get("/experiments/{namespace:path}/{hexdigest}", response_model=ExperimentDetail)
-async def get_experiment(namespace: str, hexdigest: str) -> ExperimentDetail:
+@router.get(
+    "/experiments/{namespace:path}/{huldra_hash}", response_model=ExperimentDetail
+)
+async def get_experiment(namespace: str, huldra_hash: str) -> ExperimentDetail:
     """Get detailed information about a specific experiment."""
-    experiment = get_experiment_detail(namespace, hexdigest)
+    experiment = get_experiment_detail(namespace, huldra_hash)
     if experiment is None:
         raise HTTPException(status_code=404, detail="Experiment not found")
     return experiment
@@ -55,5 +57,3 @@ async def get_experiment(namespace: str, hexdigest: str) -> ExperimentDetail:
 async def dashboard_stats() -> DashboardStats:
     """Get aggregate statistics for the dashboard."""
     return get_stats()
-
-

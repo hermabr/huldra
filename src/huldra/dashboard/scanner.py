@@ -19,7 +19,7 @@ from .api.models import (
 
 def _parse_namespace_from_path(experiment_dir: Path, root: Path) -> tuple[str, str]:
     """
-    Parse namespace and hexdigest from experiment directory path.
+    Parse namespace and huldra_hash from experiment directory path.
 
     Example: /data/my_project/pipelines/TrainModel/abc123 -> ("my_project.pipelines.TrainModel", "abc123")
     """
@@ -27,9 +27,9 @@ def _parse_namespace_from_path(experiment_dir: Path, root: Path) -> tuple[str, s
     parts = relative.parts
     if len(parts) < 2:  # TODO: Maybe this should throw?
         return str(relative), ""
-    hexdigest = parts[-1]
+    huldra_hash = parts[-1]
     namespace = ".".join(parts[:-1])
-    return namespace, hexdigest
+    return namespace, huldra_hash
 
 
 def _get_class_name(namespace: str) -> str:
@@ -39,13 +39,13 @@ def _get_class_name(namespace: str) -> str:
 
 
 def _state_to_summary(
-    state: _HuldraState, namespace: str, hexdigest: str
+    state: _HuldraState, namespace: str, huldra_hash: str
 ) -> ExperimentSummary:
     """Convert a Huldra state to an experiment summary."""
     attempt = state.attempt
     return ExperimentSummary(
         namespace=namespace,
-        hexdigest=hexdigest,
+        huldra_hash=huldra_hash,
         class_name=_get_class_name(namespace),
         result_status=state.result.status,
         attempt_status=attempt.status if attempt else None,
@@ -58,7 +58,7 @@ def _state_to_summary(
 def _state_to_detail(
     state: _HuldraState,
     namespace: str,
-    hexdigest: str,
+    huldra_hash: str,
     directory: Path,
     metadata: JsonDict | None,
 ) -> ExperimentDetail:
@@ -89,7 +89,7 @@ def _state_to_detail(
 
     return ExperimentDetail(
         namespace=namespace,
-        hexdigest=hexdigest,
+        huldra_hash=huldra_hash,
         class_name=_get_class_name(namespace),
         result_status=state.result.status,
         attempt_status=attempt.status if attempt else None,
@@ -154,9 +154,11 @@ def scan_experiments(
         for experiment_dir in _find_experiment_dirs(root):
             try:
                 state = StateManager.read_state(experiment_dir)
-                namespace, hexdigest = _parse_namespace_from_path(experiment_dir, root)
+                namespace, huldra_hash = _parse_namespace_from_path(
+                    experiment_dir, root
+                )
 
-                summary = _state_to_summary(state, namespace, hexdigest)
+                summary = _state_to_summary(state, namespace, huldra_hash)
 
                 # Apply filters
                 if result_status and summary.result_status != result_status:
@@ -182,13 +184,13 @@ def scan_experiments(
     return experiments
 
 
-def get_experiment_detail(namespace: str, hexdigest: str) -> ExperimentDetail | None:
+def get_experiment_detail(namespace: str, huldra_hash: str) -> ExperimentDetail | None:
     """
     Get detailed information about a specific experiment.
 
     Args:
         namespace: Dot-separated namespace (e.g., "my_project.pipelines.TrainModel")
-        hexdigest: Hash identifying the specific experiment
+        huldra_hash: Hash identifying the specific experiment
 
     Returns:
         Experiment detail or None if not found
@@ -198,7 +200,7 @@ def get_experiment_detail(namespace: str, hexdigest: str) -> ExperimentDetail | 
 
     # Try both data and git roots
     for root in [HULDRA_CONFIG.get_root(False), HULDRA_CONFIG.get_root(True)]:
-        experiment_dir = root / namespace_path / hexdigest
+        experiment_dir = root / namespace_path / huldra_hash
         state_file = experiment_dir / ".huldra" / "state.json"
 
         if state_file.is_file():
@@ -206,7 +208,7 @@ def get_experiment_detail(namespace: str, hexdigest: str) -> ExperimentDetail | 
                 state = StateManager.read_state(experiment_dir)
                 metadata = _read_metadata(experiment_dir)
                 return _state_to_detail(
-                    state, namespace, hexdigest, experiment_dir, metadata
+                    state, namespace, huldra_hash, experiment_dir, metadata
                 )
             except Exception:
                 return None

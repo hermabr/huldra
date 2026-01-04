@@ -130,7 +130,7 @@ Huldra also exposes a shared “raw” directory:
 
 - `self.raw_dir == huldra.HULDRA_CONFIG.raw_dir` (defaults to `<HULDRA_PATH>/raw`)
 
-Use this for large, non-versioned inputs/outputs. If you want per-object isolation, create a subfolder yourself, e.g. `self.raw_dir / self.hexdigest / "file.ext"`.
+Use this for large, non-versioned inputs/outputs. If you want per-object isolation, create a subfolder yourself, e.g. `self.raw_dir / self._huldra_hash / "file.ext"`.
 
 ## Logging (Hydra-style)
 

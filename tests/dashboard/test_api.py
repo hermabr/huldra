@@ -34,7 +34,7 @@ def test_list_experiments(client: TestClient, populated_huldra_root: Path) -> No
     # Check structure of returned experiments
     exp = data["experiments"][0]
     assert "namespace" in exp
-    assert "hexdigest" in exp
+    assert "huldra_hash" in exp
     assert "class_name" in exp
     assert "result_status" in exp
 
@@ -101,7 +101,7 @@ def test_get_experiment_detail(client: TestClient, populated_huldra_root: Path) 
     data = response.json()
 
     assert data["namespace"] == "my_project.pipelines.TrainModel"
-    assert data["hexdigest"] == "abc123def456"
+    assert data["huldra_hash"] == "abc123def456"
     assert data["class_name"] == "TrainModel"
     assert data["result_status"] == "success"
     assert data["attempt_status"] == "success"

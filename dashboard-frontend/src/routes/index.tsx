@@ -130,15 +130,15 @@ function HomePage() {
             <tbody className="divide-y divide-slate-800">
               {recentExperiments?.experiments.map((exp) => (
                 <tr
-                  key={`${exp.namespace}-${exp.hexdigest}`}
+                  key={`${exp.namespace}-${exp.huldra_hash}`}
                   className="hover:bg-slate-800/50 transition-colors"
                 >
                   <td className="px-6 py-4">
                     <Link
-                      to="/experiments/$namespace/$hexdigest"
+                      to="/experiments/$namespace/$huldra_hash"
                       params={{
                         namespace: exp.namespace,
-                        hexdigest: exp.hexdigest,
+                        huldra_hash: exp.huldra_hash,
                       }}
                       className="text-white font-medium hover:text-huldra-400"
                     >

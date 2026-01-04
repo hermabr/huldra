@@ -25,7 +25,7 @@ class _HuldraListMeta(type):
             if not isinstance(obj, Huldra):
                 raise TypeError(f"{obj!r} is not a Huldra instance")
 
-            digest = obj.hexdigest
+            digest = obj._huldra_hash
             if digest not in seen:
                 seen.add(digest)
                 items.append(cast(_H, obj))

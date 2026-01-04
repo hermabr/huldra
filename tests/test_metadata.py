@@ -36,7 +36,7 @@ def test_metadata_roundtrip_and_get_metadata(huldra_tmp_root, monkeypatch) -> No
 
     assert obj.load_or_create() == 42
     meta = obj.get_metadata()
-    assert meta.huldra_hash == obj.hexdigest
+    assert meta.huldra_hash == obj._huldra_hash
     assert meta.huldra_obj["value"] == 42
     assert meta.git_commit == "<test>"
 

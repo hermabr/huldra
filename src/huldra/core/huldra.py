@@ -169,7 +169,7 @@ class Huldra[T](ABC):
         logger.warning(
             "invalidate %s %s %s (%s)",
             self.__class__.__name__,
-            self.hexdigest,
+            self._huldra_hash,
             directory,
             reason,
         )
@@ -188,15 +188,15 @@ class Huldra[T](ABC):
         )
 
     @property
-    def hexdigest(self: Self) -> str:
-        """Compute hash of this object."""
+    def _huldra_hash(self: Self) -> str:
+        """Compute hash of this object's content for storage identification."""
         return HuldraSerializer.compute_hash(self)
 
     @property
     def huldra_dir(self: Self) -> Path:
         """Get the directory for this Huldra object."""
         root = HULDRA_CONFIG.get_root(self.version_controlled)
-        return root / self.__class__._namespace() / self.hexdigest
+        return root / self.__class__._namespace() / self._huldra_hash
 
     @property
     def raw_dir(self: Self) -> Path:
@@ -275,7 +275,7 @@ class Huldra[T](ABC):
             logger.debug(
                 "dep: begin %s %s %s",
                 self.__class__.__name__,
-                self.hexdigest,
+                self._huldra_hash,
                 self.huldra_dir,
             )
 
@@ -335,7 +335,7 @@ class Huldra[T](ABC):
                 logger.info(
                     "load_or_create %s %s",
                     self.__class__.__name__,
-                    self.hexdigest,
+                    self._huldra_hash,
                     extra={
                         "huldra_console_only": True,
                         "huldra_action_color": action_color,
@@ -347,7 +347,7 @@ class Huldra[T](ABC):
                     logger.debug(
                         "load_or_create %s %s %s (%s)",
                         self.__class__.__name__,
-                        self.hexdigest,
+                        self._huldra_hash,
                         directory,
                         decision,
                         extra={"huldra_action_color": action_color},
@@ -367,7 +367,7 @@ class Huldra[T](ABC):
                         logger.error(
                             "load_or_create %s %s (load failed)",
                             self.__class__.__name__,
-                            self.hexdigest,
+                            self._huldra_hash,
                         )
                         raise HuldraComputeError(
                             f"Failed to load result from {directory}",
@@ -435,7 +435,7 @@ class Huldra[T](ABC):
                 logger.debug(
                     "dep: end %s %s (%s)",
                     self.__class__.__name__,
-                    self.hexdigest,
+                    self._huldra_hash,
                     "ok" if ok else "error",
                 )
 
@@ -475,7 +475,7 @@ class Huldra[T](ABC):
             logger.debug(
                 "submit: waiting for submit lock %s %s %s",
                 self.__class__.__name__,
-                self.hexdigest,
+                self._huldra_hash,
                 directory,
             )
             time.sleep(0.5)
@@ -562,7 +562,7 @@ class Huldra[T](ABC):
                     logger.info(
                         "compute: waiting for compute lock %s %s %s",
                         self.__class__.__name__,
-                        self.hexdigest,
+                        self._huldra_hash,
                         directory,
                     )
                     next_wait_log_at = now + HULDRA_CONFIG.wait_log_every_sec
@@ -606,14 +606,14 @@ class Huldra[T](ABC):
                     logger.debug(
                         "_create: begin %s %s %s",
                         self.__class__.__name__,
-                        self.hexdigest,
+                        self._huldra_hash,
                         directory,
                     )
                     self._create()
                     logger.debug(
                         "_create: ok %s %s %s",
                         self.__class__.__name__,
-                        self.hexdigest,
+                        self._huldra_hash,
                         directory,
                     )
                     StateManager.write_success_marker(directory, attempt_id=attempt_id)
@@ -623,14 +623,14 @@ class Huldra[T](ABC):
                     logger.info(
                         "_create ok %s %s",
                         self.__class__.__name__,
-                        self.hexdigest,
+                        self._huldra_hash,
                         extra={"huldra_console_only": True},
                     )
                 except Exception as e:
                     logger.error(
                         "_create failed %s %s %s",
                         self.__class__.__name__,
-                        self.hexdigest,
+                        self._huldra_hash,
                         directory,
                         extra={"huldra_file_only": True},
                     )
@@ -724,7 +724,7 @@ class Huldra[T](ABC):
                     logger.info(
                         "compute: waiting for compute lock %s %s %s",
                         self.__class__.__name__,
-                        self.hexdigest,
+                        self._huldra_hash,
                         directory,
                     )
                     next_wait_log_at = now + HULDRA_CONFIG.wait_log_every_sec
@@ -773,14 +773,14 @@ class Huldra[T](ABC):
                 logger.debug(
                     "_create: begin %s %s %s",
                     self.__class__.__name__,
-                    self.hexdigest,
+                    self._huldra_hash,
                     directory,
                 )
                 result = self._create()
                 logger.debug(
                     "_create: ok %s %s %s",
                     self.__class__.__name__,
-                    self.hexdigest,
+                    self._huldra_hash,
                     directory,
                 )
                 StateManager.write_success_marker(directory, attempt_id=attempt_id)
@@ -788,7 +788,7 @@ class Huldra[T](ABC):
                 logger.info(
                     "_create ok %s %s",
                     self.__class__.__name__,
-                    self.hexdigest,
+                    self._huldra_hash,
                     extra={"huldra_console_only": True},
                 )
                 return "success", True, result
@@ -796,7 +796,7 @@ class Huldra[T](ABC):
                 logger.error(
                     "_create failed %s %s %s",
                     self.__class__.__name__,
-                    self.hexdigest,
+                    self._huldra_hash,
                     directory,
                     extra={"huldra_file_only": True},
                 )

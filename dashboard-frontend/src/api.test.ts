@@ -6,7 +6,7 @@ import { expect, test, describe } from "bun:test";
 import {
   healthCheckApiHealthGetResponse,
   listExperimentsApiExperimentsGetResponse,
-  getExperimentApiExperimentsNamespaceHexdigestGetResponse,
+  getExperimentApiExperimentsNamespaceHuldraHashGetResponse,
   dashboardStatsApiStatsGetResponse,
 } from "./api/zod/schemas";
 
@@ -18,7 +18,7 @@ const mockData = {
   },
   experimentSummary: {
     namespace: "my_project.pipelines.TrainModel",
-    hexdigest: "abc123def456",
+    huldra_hash: "abc123def456",
     class_name: "TrainModel",
     result_status: "success",
     attempt_status: "success",
@@ -30,7 +30,7 @@ const mockData = {
     experiments: [
       {
         namespace: "my_project.pipelines.TrainModel",
-        hexdigest: "abc123def456",
+        huldra_hash: "abc123def456",
         class_name: "TrainModel",
         result_status: "success",
         attempt_status: "success",
@@ -40,7 +40,7 @@ const mockData = {
       },
       {
         namespace: "my_project.pipelines.EvalModel",
-        hexdigest: "xyz789ghi012",
+        huldra_hash: "xyz789ghi012",
         class_name: "EvalModel",
         result_status: "running",
         attempt_status: "running",
@@ -53,7 +53,7 @@ const mockData = {
   },
   experimentDetail: {
     namespace: "my_project.pipelines.TrainModel",
-    hexdigest: "abc123def456",
+    huldra_hash: "abc123def456",
     class_name: "TrainModel",
     result_status: "success",
     attempt_status: "success",
@@ -156,7 +156,7 @@ describe("Experiment List Schema", () => {
     const invalidList = {
       experiments: [
         {
-          hexdigest: "abc123",
+          huldra_hash: "abc123",
           class_name: "Test",
           result_status: "success",
         },
@@ -171,7 +171,7 @@ describe("Experiment List Schema", () => {
 
 describe("Experiment Detail Schema", () => {
   test("valid experiment detail passes schema", () => {
-    const result = getExperimentApiExperimentsNamespaceHexdigestGetResponse.safeParse(
+    const result = getExperimentApiExperimentsNamespaceHuldraHashGetResponse.safeParse(
       mockData.experimentDetail
     );
     expect(result.success).toBe(true);
@@ -182,7 +182,7 @@ describe("Experiment Detail Schema", () => {
       ...mockData.experimentDetail,
       metadata: null,
     };
-    const result = getExperimentApiExperimentsNamespaceHexdigestGetResponse.safeParse(
+    const result = getExperimentApiExperimentsNamespaceHuldraHashGetResponse.safeParse(
       detailWithNullMetadata
     );
     expect(result.success).toBe(true);
@@ -193,7 +193,7 @@ describe("Experiment Detail Schema", () => {
       ...mockData.experimentDetail,
       attempt: null,
     };
-    const result = getExperimentApiExperimentsNamespaceHexdigestGetResponse.safeParse(
+    const result = getExperimentApiExperimentsNamespaceHuldraHashGetResponse.safeParse(
       detailWithNullAttempt
     );
     expect(result.success).toBe(true);
@@ -201,7 +201,7 @@ describe("Experiment Detail Schema", () => {
 
   test("experiment detail missing directory fails schema", () => {
     const { directory: _, ...invalidDetail } = mockData.experimentDetail;
-    const result = getExperimentApiExperimentsNamespaceHexdigestGetResponse.safeParse(
+    const result = getExperimentApiExperimentsNamespaceHuldraHashGetResponse.safeParse(
       invalidDetail
     );
     expect(result.success).toBe(false);

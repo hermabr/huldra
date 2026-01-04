@@ -47,7 +47,7 @@ class ExperimentSummary(BaseModel):
     """Summary of an experiment for list views."""
 
     namespace: str
-    hexdigest: str
+    huldra_hash: str
     class_name: str
     result_status: str
     attempt_status: str | None = None

@@ -228,4 +228,4 @@ e2e/playwright-report/
 orval.config.js
 vite.config.js
 
-openapi.json
+/openapi.json

@@ -31,7 +31,7 @@ def temp_huldra_root(tmp_path: Path) -> Generator[Path, None, None]:
 def create_experiment(
     root: Path,
     namespace: str,
-    hexdigest: str,
+    huldra_hash: str,
     result_status: str = "success",
     attempt_status: str | None = None,
     version_controlled: bool = False,
@@ -42,7 +42,7 @@ def create_experiment(
     Args:
         root: Huldra base root directory
         namespace: Dot-separated namespace (e.g., "my_project.pipelines.Train")
-        hexdigest: Hash identifier
+        huldra_hash: Hash identifier
         result_status: One of: absent, incomplete, success, failed
         attempt_status: Optional attempt status (queued, running, success, failed, etc.)
         version_controlled: Whether to put in git/ or data/ subdirectory
@@ -52,7 +52,7 @@ def create_experiment(
     """
     subdir = "git" if version_controlled else "data"
     namespace_path = Path(*namespace.split("."))
-    experiment_dir = root / subdir / namespace_path / hexdigest
+    experiment_dir = root / subdir / namespace_path / huldra_hash
     huldra_dir = experiment_dir / ".huldra"
     huldra_dir.mkdir(parents=True, exist_ok=True)
 
@@ -70,7 +70,7 @@ def create_experiment(
     attempt = None
     if attempt_status:
         attempt = {
-            "id": f"attempt-{hexdigest[:8]}",
+            "id": f"attempt-{huldra_hash[:8]}",
             "number": 1,
             "backend": "local",
             "status": attempt_status,
@@ -107,7 +107,7 @@ def create_experiment(
     metadata = {
         "huldra_python_def": f"{namespace}()",
         "huldra_obj": {"__class__": namespace},
-        "huldra_hash": hexdigest,
+        "huldra_hash": huldra_hash,
         "huldra_path": str(experiment_dir),
         "git_commit": "abc123",
         "git_branch": "main",
