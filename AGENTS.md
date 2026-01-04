@@ -4,7 +4,7 @@
 
 **DO NOT USE** the following patterns in this codebase:
 - `typing.Optional` - Use `X | None` instead
-- `typing.Any` - Use actual concrete types; if truly dynamic, use `object` or a protocol
+- `typing.Any` or `object` for dynamic data - Use typed classes (Pydantic models, dataclasses, or TypedDict) instead. For truly polymorphic code, use protocols or generics.
 - `try/except` for error recovery - Prefer happy path and let errors crash; only use try/except for cleanup or resource management
 
 **ALWAYS** use `make` commands rather than running tools directly:

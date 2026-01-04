@@ -3,6 +3,7 @@ import json
 import pytest
 
 import huldra
+from huldra.storage.metadata import GitInfo
 
 
 class Dummy(huldra.Huldra[int]):
@@ -20,13 +21,13 @@ def test_metadata_roundtrip_and_get_metadata(huldra_tmp_root, monkeypatch) -> No
     monkeypatch.setattr(
         huldra.MetadataManager,
         "collect_git_info",
-        lambda ignore_diff=False: {
-            "git_commit": "<test>",
-            "git_branch": "<test>",
-            "git_remote": "<test>",
-            "git_patch": "<test>",
-            "git_submodules": {},
-        },
+        lambda ignore_diff=False: GitInfo(
+            git_commit="<test>",
+            git_branch="<test>",
+            git_remote="<test>",
+            git_patch="<test>",
+            git_submodules={},
+        ),
     )
 
     obj = Dummy(value=42)
@@ -35,9 +36,9 @@ def test_metadata_roundtrip_and_get_metadata(huldra_tmp_root, monkeypatch) -> No
 
     assert obj.load_or_create() == 42
     meta = obj.get_metadata()
-    assert meta["huldra_hash"] == obj.hexdigest
-    assert meta["huldra_obj"]["value"] == 42
-    assert meta["git_commit"] == "<test>"
+    assert meta.huldra_hash == obj.hexdigest
+    assert meta.huldra_obj["value"] == 42
+    assert meta.git_commit == "<test>"
 
 
 def test_metadata_read_raises_when_missing(huldra_tmp_root, tmp_path) -> None:
