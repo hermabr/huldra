@@ -16,15 +16,19 @@ lint:
 
 check: lint test
 
-build: test-all dashboard-build
+build: dashboard-build test-all 
 	uv build
 
 clean:
 	rm -rf .pytest_cache/
+	rm -rf .ruff_cache/
 	rm -rf dist/
 	rm -rf src/huldra/dashboard/frontend/dist/
 	rm -rf dashboard-frontend/src/api/
+	rm -rf e2e/playwright-report/
+	rm -rf e2e/test-results/
 	rm -f openapi.json
+	find . -type d -name "__pycache__" -not -path "./.venv/*" -exec rm -rf {} + 2>/dev/null || true
 
 # ============================================================================
 # Dashboard Commands
