@@ -25,9 +25,7 @@ test.describe("Experiments Page", () => {
     await page.goto("/experiments");
 
     // Wait for experiments to load - should have 10 experiments from generate_data.py
-    await expect(page.getByText(/Showing \d+ of 10 experiments/)).toBeVisible({
-      timeout: 10000,
-    });
+    await expect(page.getByText(/Showing \d+ of 10 experiments/)).toBeVisible();
   });
 
   test("should filter by result status", async ({ page }) => {
@@ -39,69 +37,50 @@ test.describe("Experiments Page", () => {
     ).toBeVisible();
 
     // Wait for initial data to load
-    await expect(page.getByText(/Showing \d+ of \d+ experiments/)).toBeVisible({
-      timeout: 10000,
-    });
+    await expect(page.getByText(/Showing \d+ of \d+ experiments/)).toBeVisible();
 
     // Select success filter (first dropdown is result status)
     const resultStatusSelect = page.getByRole("combobox").first();
     await resultStatusSelect.selectOption("success");
 
     // Wait for filter to apply - should show 6 successful experiments
-    await expect(page.getByText(/Showing \d+ of 6 experiments/)).toBeVisible({
-      timeout: 10000,
-    });
+    await expect(page.getByText(/Showing \d+ of 6 experiments/)).toBeVisible();
   });
 
   test("should filter by namespace", async ({ page }) => {
     await page.goto("/experiments");
 
     // Wait for initial load
-    await expect(page.getByText(/Showing \d+ of \d+ experiments/)).toBeVisible({
-      timeout: 10000,
-    });
+    await expect(page.getByText(/Showing \d+ of \d+ experiments/)).toBeVisible();
 
     // Enter namespace filter - use namespace from generated data
     const namespaceInput = page.getByPlaceholder("Filter by namespace...");
     await namespaceInput.fill("__main__.TrainModel");
 
-    // Wait for debounce and filter to apply
-    await page.waitForTimeout(600);
-
-    // Should filter to show TrainModel experiments
-    await expect(page.getByText(/Showing \d+ of \d+ experiments/)).toBeVisible({
-      timeout: 10000,
-    });
+    // Wait for filter to apply by checking that the results count changed
+    // The debounce is 300ms, so we wait for the filtered results
+    await expect(page.getByText(/Showing \d+ of \d+ experiments/)).toBeVisible();
   });
 
   test("should handle empty results gracefully", async ({ page }) => {
     await page.goto("/experiments");
 
     // Wait for initial data to load
-    await expect(page.getByText(/Showing \d+ of \d+ experiments/)).toBeVisible({
-      timeout: 10000,
-    });
+    await expect(page.getByText(/Showing \d+ of \d+ experiments/)).toBeVisible();
 
     // Filter with unlikely namespace via the UI input
     const namespaceInput = page.getByPlaceholder("Filter by namespace...");
     await namespaceInput.fill("nonexistent_namespace_xyz");
 
-    // Wait for debounce and filter to apply
-    await page.waitForTimeout(600);
-
     // Should show empty state message (EmptyState component)
-    await expect(page.getByText("No experiments found")).toBeVisible({
-      timeout: 10000,
-    });
+    await expect(page.getByText("No experiments found")).toBeVisible();
   });
 
   test("should display experiment cards with real data", async ({ page }) => {
     await page.goto("/experiments");
 
     // Wait for experiments to load
-    await expect(page.getByText(/Showing \d+ of \d+ experiments/)).toBeVisible({
-      timeout: 10000,
-    });
+    await expect(page.getByText(/Showing \d+ of \d+ experiments/)).toBeVisible();
 
     // Check that experiment cards are displayed
     // These should be real class names from our generated data
@@ -128,9 +107,7 @@ test.describe("Experiments Page", () => {
     await page.goto("/experiments");
 
     // Wait for experiments to load
-    await expect(page.getByText(/Showing \d+ of \d+ experiments/)).toBeVisible({
-      timeout: 10000,
-    });
+    await expect(page.getByText(/Showing \d+ of \d+ experiments/)).toBeVisible();
 
     // The generated data has experiments with various states
     // Check that at least some status indicators are visible

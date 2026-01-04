@@ -30,9 +30,7 @@ test.describe("Dashboard Home Page", () => {
 
     // The stats should reflect our generated data (10 total experiments)
     // Use the specific test ID to avoid matching timestamps
-    await expect(page.getByTestId("stats-total-value")).toHaveText("10", {
-      timeout: 10000,
-    });
+    await expect(page.getByTestId("stats-total-value")).toHaveText("10");
   });
 
   test("should have working navigation", async ({ page }) => {
@@ -58,8 +56,6 @@ test.describe("Dashboard Home Page", () => {
 
     // Should show some content related to experiments
     // Use the specific test ID to avoid matching timestamps
-    await expect(page.getByTestId("stats-total-value")).toHaveText("10", {
-      timeout: 10000,
-    });
+    await expect(page.getByTestId("stats-total-value")).toHaveText("10");
   });
 });
