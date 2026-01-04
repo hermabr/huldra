@@ -8,29 +8,14 @@ import subprocess
 import tempfile
 from pathlib import Path
 
+import pytest
 
-def run_ty_check(code: str) -> subprocess.CompletedProcess[str]:
-    """Run ty check on a code snippet and return the result."""
-    with tempfile.NamedTemporaryFile(mode="w", suffix=".py", delete=False) as f:
-        f.write(code)
-        f.flush()
-        temp_path = Path(f.name)
-
-    try:
-        result = subprocess.run(
-            ["uv", "run", "ty", "check", str(temp_path)],
-            capture_output=True,
-            text=True,
-            cwd=Path(__file__).parent.parent,  # Run from project root
-        )
-        return result
-    finally:
-        temp_path.unlink()
-
-
-def test_correct_huldra_subclass_passes_type_check() -> None:
-    """A correctly typed Huldra subclass should pass type checking."""
-    code = """
+# All test cases: (name, code, should_pass, expected_errors)
+# expected_errors is a list of strings that should appear in output if should_pass=False
+TYPING_TEST_CASES: list[tuple[str, str, bool, list[str]]] = [
+    (
+        "correct_huldra_subclass",
+        """
 from pathlib import Path
 import huldra
 
@@ -44,14 +29,13 @@ class CorrectData(huldra.Huldra[Path]):
 
     def _load(self) -> Path:
         return self.huldra_dir / "data.txt"
-"""
-    result = run_ty_check(code)
-    assert result.returncode == 0, f"Expected no errors, got:\n{result.stdout}"
-
-
-def test_subclass_changing_return_type_fails_type_check() -> None:
-    """A subclass that changes the return type should fail type checking."""
-    code = """
+""",
+        True,
+        [],
+    ),
+    (
+        "subclass_changing_return_type",
+        """
 from pathlib import Path
 import huldra
 
@@ -68,17 +52,13 @@ class WrongSubclass(BaseData):
 
     def _load(self) -> str:  # Wrong: should be Path
         return "wrong"
-"""
-    result = run_ty_check(code)
-    assert result.returncode != 0, "Expected type errors"
-    assert "invalid-method-override" in result.stdout
-    assert "_create" in result.stdout
-    assert "_load" in result.stdout
-
-
-def test_huldra_subclass_with_mismatched_create_type_fails() -> None:
-    """Declaring Huldra[Path] but returning str from _create should fail."""
-    code = """
+""",
+        False,
+        ["invalid-method-override", "_create", "_load"],
+    ),
+    (
+        "mismatched_create_type",
+        """
 from pathlib import Path
 import huldra
 
@@ -88,16 +68,13 @@ class MismatchedCreate(huldra.Huldra[Path]):
 
     def _load(self) -> Path:
         return self.huldra_dir / "data.txt"
-"""
-    result = run_ty_check(code)
-    assert result.returncode != 0, "Expected type error"
-    assert "invalid-method-override" in result.stdout
-    assert "_create" in result.stdout
-
-
-def test_huldra_subclass_with_mismatched_load_type_fails() -> None:
-    """Declaring Huldra[Path] but returning str from _load should fail."""
-    code = """
+""",
+        False,
+        ["invalid-method-override", "_create"],
+    ),
+    (
+        "mismatched_load_type",
+        """
 from pathlib import Path
 import huldra
 
@@ -107,16 +84,13 @@ class MismatchedLoad(huldra.Huldra[Path]):
 
     def _load(self) -> str:  # Wrong: declared Huldra[Path]
         return "should be Path"
-"""
-    result = run_ty_check(code)
-    assert result.returncode != 0, "Expected type error"
-    assert "invalid-method-override" in result.stdout
-    assert "_load" in result.stdout
-
-
-def test_correct_inheritance_chain_passes() -> None:
-    """A correct inheritance chain (Base -> Subclass) should pass."""
-    code = """
+""",
+        False,
+        ["invalid-method-override", "_load"],
+    ),
+    (
+        "correct_inheritance_chain",
+        """
 from pathlib import Path
 import huldra
 
@@ -139,14 +113,13 @@ class DataA(Data):
         path.write_text(f"{self.name} {self.extra}")
         return path
     # _load inherited - correct
-"""
-    result = run_ty_check(code)
-    assert result.returncode == 0, f"Expected no errors, got:\n{result.stdout}"
-
-
-def test_polymorphic_dependency_with_base_type_passes() -> None:
-    """Using a base type annotation for polymorphic dependencies should pass."""
-    code = """
+""",
+        True,
+        [],
+    ),
+    (
+        "polymorphic_dependency",
+        """
 from pathlib import Path
 import json
 import huldra
@@ -183,6 +156,53 @@ class Train(huldra.Huldra[Path]):
 # Usage should type check correctly
 data_a = DataA(name="test")
 train = Train(data=data_a)  # DataA is a valid Data
-"""
-    result = run_ty_check(code)
-    assert result.returncode == 0, f"Expected no errors, got:\n{result.stdout}"
+""",
+        True,
+        [],
+    ),
+]
+
+
+def run_ty_check(code: str) -> tuple[int, str]:
+    """Run ty check on a code snippet and return (returncode, output)."""
+    project_root = Path(__file__).parent.parent
+
+    with tempfile.NamedTemporaryFile(mode="w", suffix=".py", delete=False) as f:
+        f.write(code)
+        f.flush()
+        file_path = Path(f.name)
+
+    try:
+        result = subprocess.run(
+            ["uv", "run", "ty", "check", str(file_path)],
+            capture_output=True,
+            text=True,
+            cwd=project_root,
+        )
+        return result.returncode, result.stdout + result.stderr
+    finally:
+        file_path.unlink()
+
+
+@pytest.mark.parametrize(
+    "name,code,should_pass,expected_errors",
+    TYPING_TEST_CASES,
+    ids=[case[0] for case in TYPING_TEST_CASES],
+)
+def test_huldra_typing(
+    name: str,
+    code: str,
+    should_pass: bool,
+    expected_errors: list[str],
+) -> None:
+    """Test that ty correctly validates Huldra subclass typing."""
+    returncode, output = run_ty_check(code)
+
+    if should_pass:
+        assert returncode == 0, f"Expected no errors for {name}, got:\n{output}"
+    else:
+        assert returncode != 0, f"Expected type errors for {name}, got no errors"
+        for error in expected_errors:
+            assert error in output, (
+                f"Expected '{error}' in output for {name}:\n{output}"
+            )
