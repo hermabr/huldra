@@ -7,9 +7,66 @@ import socket
 import subprocess
 import sys
 from pathlib import Path
-from typing import Any, Dict, List
 
-from ..serialization import BaseModel, HuldraSerializer
+from pydantic import BaseModel, ConfigDict
+
+from ..serialization import BaseModel as PydanticBaseModel, HuldraSerializer
+
+
+class GitInfo(BaseModel):
+    """Git repository information."""
+
+    model_config = ConfigDict(extra="forbid", strict=True)
+
+    git_commit: str
+    git_branch: str
+    git_remote: str
+    git_patch: str
+    git_submodules: dict[str, str]
+
+
+class EnvironmentInfo(BaseModel):
+    """Runtime environment information."""
+
+    model_config = ConfigDict(extra="forbid", strict=True)
+
+    timestamp: str
+    command: str
+    python_version: str
+    executable: str
+    platform: str
+    hostname: str
+    user: str
+    pid: int
+
+
+class HuldraMetadata(BaseModel):
+    """Complete metadata for a Huldra experiment."""
+
+    model_config = ConfigDict(extra="forbid", strict=True)
+
+    # Huldra-specific fields
+    huldra_python_def: str
+    huldra_obj: dict[str, object]
+    huldra_hash: str
+    huldra_path: str
+
+    # Git info
+    git_commit: str
+    git_branch: str
+    git_remote: str
+    git_patch: str
+    git_submodules: dict[str, str]
+
+    # Environment info
+    timestamp: str
+    command: str
+    python_version: str
+    executable: str
+    platform: str
+    hostname: str
+    user: str
+    pid: int
 
 
 class MetadataManager:
@@ -23,7 +80,7 @@ class MetadataManager:
         return directory / cls.INTERNAL_DIR / cls.METADATA_FILE
 
     @staticmethod
-    def safe_git_command(args: List[str]) -> str:
+    def safe_git_command(args: list[str]) -> str:
         """Run git command safely, return output or error message."""
         try:
             proc = subprocess.run(
@@ -37,7 +94,7 @@ class MetadataManager:
             return "<unavailable>"
 
     @classmethod
-    def collect_git_info(cls, ignore_diff: bool = False) -> Dict[str, Any]:
+    def collect_git_info(cls, ignore_diff: bool = False) -> GitInfo:
         """Collect git repository information."""
         head = cls.safe_git_command(["rev-parse", "HEAD"])
         branch = cls.safe_git_command(["rev-parse", "--abbrev-ref", "HEAD"])
@@ -77,72 +134,90 @@ class MetadataManager:
                     "Use ignore_diff=True or HULDRA_IGNORE_DIFF=1"
                 )
 
-        submodules = {}
+        submodules: dict[str, str] = {}
         for line in cls.safe_git_command(["submodule", "status"]).splitlines():
             parts = line.split()
             if len(parts) >= 2:
                 submodules[parts[1]] = parts[0]
 
-        return {
-            "git_commit": head,
-            "git_branch": branch,
-            "git_remote": remote,
-            "git_patch": patch,
-            "git_submodules": submodules,
-        }
+        return GitInfo(
+            git_commit=head,
+            git_branch=branch,
+            git_remote=remote,
+            git_patch=patch,
+            git_submodules=submodules,
+        )
 
     @staticmethod
-    def collect_environment_info() -> Dict[str, Any]:
+    def collect_environment_info() -> EnvironmentInfo:
         """Collect environment information."""
-        return {
-            "timestamp": datetime.datetime.now(datetime.timezone.utc).isoformat(
+        return EnvironmentInfo(
+            timestamp=datetime.datetime.now(datetime.timezone.utc).isoformat(
                 timespec="microseconds"
             ),
-            "command": " ".join(sys.argv) if sys.argv else "<unknown>",
-            "python_version": sys.version,
-            "executable": sys.executable,
-            "platform": platform.platform(),
-            "hostname": socket.gethostname(),
-            "user": getpass.getuser(),
-            "pid": os.getpid(),
-        }
+            command=" ".join(sys.argv) if sys.argv else "<unknown>",
+            python_version=sys.version,
+            executable=sys.executable,
+            platform=platform.platform(),
+            hostname=socket.gethostname(),
+            user=getpass.getuser(),
+            pid=os.getpid(),
+        )
 
     @classmethod
     def create_metadata(
-        cls, huldra_obj: Any, directory: Path, ignore_diff: bool = False
-    ) -> Dict[str, Any]:
-        """Create complete metadata dictionary."""
-        metadata = {
-            "huldra_python_def": HuldraSerializer.to_python(
-                huldra_obj, multiline=False
-            ),
-            "huldra_obj": HuldraSerializer.to_dict(huldra_obj),
-            "huldra_hash": HuldraSerializer.compute_hash(huldra_obj),
-            "huldra_path": str(directory.resolve()),
-            **cls.collect_git_info(ignore_diff),
-            **cls.collect_environment_info(),
-        }
-        return metadata
+        cls, huldra_obj: object, directory: Path, ignore_diff: bool = False
+    ) -> HuldraMetadata:
+        """Create complete metadata for a Huldra object."""
+        git_info = cls.collect_git_info(ignore_diff)
+        env_info = cls.collect_environment_info()
+
+        serialized_obj = HuldraSerializer.to_dict(huldra_obj)
+        if not isinstance(serialized_obj, dict):
+            raise TypeError(
+                f"Expected HuldraSerializer.to_dict to return dict, got {type(serialized_obj)}"
+            )
+
+        return HuldraMetadata(
+            huldra_python_def=HuldraSerializer.to_python(huldra_obj, multiline=False),
+            huldra_obj=serialized_obj,
+            huldra_hash=HuldraSerializer.compute_hash(huldra_obj),
+            huldra_path=str(directory.resolve()),
+            git_commit=git_info.git_commit,
+            git_branch=git_info.git_branch,
+            git_remote=git_info.git_remote,
+            git_patch=git_info.git_patch,
+            git_submodules=git_info.git_submodules,
+            timestamp=env_info.timestamp,
+            command=env_info.command,
+            python_version=env_info.python_version,
+            executable=env_info.executable,
+            platform=env_info.platform,
+            hostname=env_info.hostname,
+            user=env_info.user,
+            pid=env_info.pid,
+        )
 
     @classmethod
-    def write_metadata(cls, metadata: Dict[str, Any], directory: Path) -> None:
+    def write_metadata(cls, metadata: HuldraMetadata, directory: Path) -> None:
         """Write metadata to file."""
         metadata_path = cls.get_metadata_path(directory)
         metadata_path.parent.mkdir(parents=True, exist_ok=True)
         metadata_path.write_text(
             json.dumps(
-                metadata,
+                metadata.model_dump(mode="json"),
                 indent=2,
                 default=lambda o: o.model_dump()
-                if BaseModel is not None and isinstance(o, BaseModel)
+                if PydanticBaseModel is not None and isinstance(o, PydanticBaseModel)
                 else str(o),
             )
         )
 
     @classmethod
-    def read_metadata(cls, directory: Path) -> Dict[str, Any]:
+    def read_metadata(cls, directory: Path) -> HuldraMetadata:
         """Read metadata from file."""
         metadata_path = cls.get_metadata_path(directory)
         if not metadata_path.is_file():
             raise FileNotFoundError(f"Metadata not found: {metadata_path}")
-        return json.loads(metadata_path.read_text())
+        data = json.loads(metadata_path.read_text())
+        return HuldraMetadata.model_validate(data)

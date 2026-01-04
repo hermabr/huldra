@@ -3,7 +3,6 @@
 import json
 from collections import defaultdict
 from pathlib import Path
-from typing import Any
 
 from ..config import HULDRA_CONFIG
 from ..storage.state import StateManager, _HuldraState
@@ -60,7 +59,7 @@ def _state_to_detail(
     namespace: str,
     hexdigest: str,
     directory: Path,
-    metadata: dict[str, Any] | None,
+    metadata: dict[str, object] | None,
 ) -> ExperimentDetail:
     """Convert a Huldra state to a detailed experiment record."""
     attempt = state.attempt
@@ -119,7 +118,7 @@ def _find_experiment_dirs(root: Path) -> list[Path]:
     return experiments
 
 
-def _read_metadata(directory: Path) -> dict[str, Any] | None:
+def _read_metadata(directory: Path) -> dict[str, object] | None:
     """Read metadata.json from an experiment directory."""
     metadata_path = directory / ".huldra" / "metadata.json"
     if not metadata_path.is_file():

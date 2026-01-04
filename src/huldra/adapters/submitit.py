@@ -2,7 +2,7 @@ import contextlib
 import threading
 import time
 from pathlib import Path
-from typing import Any, Callable, Optional
+from typing import Any, Callable
 
 from ..config import HULDRA_CONFIG
 from ..storage import StateManager
@@ -21,7 +21,7 @@ class SubmititAdapter:
         """Submit a job to the executor."""
         return self.executor.submit(fn)
 
-    def wait(self, job: Any, timeout: Optional[float] = None) -> None:
+    def wait(self, job: Any, timeout: float | None = None) -> None:
         """Wait for job completion."""
         with contextlib.suppress(Exception):
             if timeout:
@@ -29,7 +29,7 @@ class SubmititAdapter:
             else:
                 job.wait()
 
-    def get_job_id(self, job: Any) -> Optional[str]:
+    def get_job_id(self, job: Any) -> str | None:
         """Get job ID if available."""
         job_id = getattr(job, "job_id", None)
         if job_id:
@@ -43,7 +43,7 @@ class SubmititAdapter:
             return done_fn()
         return False
 
-    def get_state(self, job: Any) -> Optional[str]:
+    def get_state(self, job: Any) -> str | None:
         """Get job state from scheduler."""
         try:
             state_fn = getattr(job, "state", None)
@@ -87,7 +87,7 @@ class SubmititAdapter:
         directory: Path,
         *,
         attempt_id: str,
-        callback: Optional[Callable[[str], None]] = None,
+        callback: Callable[[str], None] | None = None,
     ) -> None:
         """Watch for job ID in background thread and update state."""
 
@@ -116,7 +116,7 @@ class SubmititAdapter:
         thread = threading.Thread(target=watcher, daemon=True)
         thread.start()
 
-    def classify_scheduler_state(self, state: Optional[str]) -> Optional[str]:
+    def classify_scheduler_state(self, state: str | None) -> str | None:
         """Map scheduler state to Huldra status."""
         if not state:
             return None

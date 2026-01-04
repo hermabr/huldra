@@ -1,7 +1,5 @@
 """Pydantic models for the Dashboard API."""
 
-from typing import Any # TODO: Remove the Any
-
 from pydantic import BaseModel
 
 
@@ -12,7 +10,7 @@ class HealthCheck(BaseModel):
     version: str
 
 
-class ExperimentOwner(BaseModel): # TODO: Is it possible to share this with the actual huldra library rather than defining the experiment owner both in huldra and in huldra/dashboard?
+class ExperimentOwner(BaseModel):
     """Owner information for an experiment attempt."""
 
     pid: int | None = None
@@ -55,8 +53,8 @@ class ExperimentDetail(ExperimentSummary):
     """Detailed experiment information."""
 
     directory: str
-    state: dict[str, Any]
-    metadata: dict[str, Any] | None = None
+    state: dict[str, object]
+    metadata: dict[str, object] | None = None
     attempt: ExperimentAttempt | None = None
 
 
@@ -84,5 +82,3 @@ class DashboardStats(BaseModel):
     queued_count: int
     failed_count: int
     success_count: int
-
-

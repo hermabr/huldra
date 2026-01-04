@@ -11,7 +11,7 @@ import time
 import traceback
 from abc import ABC, abstractmethod
 from pathlib import Path
-from typing import Any, Callable, Dict, Optional, Self, TypeVar, cast, overload
+from typing import Any, Callable, Self, TypeVar, cast, overload
 
 import chz
 import submitit
@@ -24,7 +24,7 @@ from ..runtime import current_holder
 from ..runtime.logging import enter_holder, get_logger, log, write_separator
 from ..runtime.tracebacks import format_traceback
 from ..serialization import HuldraSerializer
-from ..storage import MetadataManager, StateManager
+from ..storage import HuldraMetadata, MetadataManager, StateManager
 from ..storage.state import (
     _HuldraState,
     _StateAttemptFailed,
@@ -185,12 +185,12 @@ class Huldra[T](ABC):
         """
         return HULDRA_CONFIG.raw_dir
 
-    def to_dict(self: Self) -> Dict[str, Any]:
+    def to_dict(self: Self) -> dict[str, Any]:
         """Convert to dictionary."""
         return HuldraSerializer.to_dict(self)
 
     @classmethod
-    def from_dict(cls, data: Dict[str, Any]) -> "Huldra":
+    def from_dict(cls, data: dict[str, Any]) -> "Huldra":
         """Reconstruct from dictionary."""
         return HuldraSerializer.from_dict(data)
 
@@ -220,7 +220,7 @@ class Huldra[T](ABC):
             logger.info("exists %s -> false", directory)
             return False
 
-    def get_metadata(self: Self) -> Dict[str, Any]:
+    def get_metadata(self: Self) -> "HuldraMetadata":
         """Get metadata for this object."""
         return MetadataManager.read_metadata(self.huldra_dir)
 
@@ -429,8 +429,8 @@ class Huldra[T](ABC):
         self,
         adapter: SubmititAdapter,
         directory: Path,
-        on_job_id: Optional[Callable[[Any], None]],
-    ) -> Optional[Any]:
+        on_job_id: Callable[[Any], None] | None,
+    ) -> Any | None:
         """Submit job once without waiting (fire-and-forget mode)."""
         logger = get_logger()
         self._reconcile(directory, adapter=adapter)
@@ -470,7 +470,7 @@ class Huldra[T](ABC):
                 directory,
                 backend="submitit",
                 lease_duration_sec=HULDRA_CONFIG.lease_duration_sec,
-                owner=MetadataManager.collect_environment_info(),
+                owner=MetadataManager.collect_environment_info().model_dump(),
                 scheduler={},
             )
             job = adapter.submit(lambda: self._worker_entry())
@@ -634,7 +634,7 @@ class Huldra[T](ABC):
             finally:
                 StateManager.release_lock(lock_fd, lock_path)
 
-    def _collect_submitit_env(self: Self) -> Dict[str, Any]:
+    def _collect_submitit_env(self: Self) -> dict[str, Any]:
         """Collect submitit/slurm environment information."""
         info = {
             "backend": "local",
