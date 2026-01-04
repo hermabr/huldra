@@ -121,3 +121,72 @@ class MultiDependencyPipeline(huldra.Huldra[Path]):
 
     def _load(self) -> Path:
         return self.huldra_dir / f"{self.output_name}.txt"
+
+
+# --- Inheritance pattern: abstract Data base class with concrete subclasses ---
+
+
+class Data(huldra.Huldra[Path]):
+    """Abstract base class for data sources."""
+
+    name: str = huldra.chz.field(default="unnamed")
+
+    def _create(self) -> Path:
+        raise NotImplementedError("Subclasses must implement _create")
+
+    def _load(self) -> Path:
+        return self.huldra_dir / "data.json"
+
+
+class DataA(Data):
+    """Concrete data source A."""
+
+    source_url: str = huldra.chz.field(default="http://example.com/a")
+
+    def _create(self) -> Path:
+        path = self.huldra_dir / "data.json"
+        path.write_text(
+            json.dumps({"type": "A", "name": self.name, "url": self.source_url})
+        )
+        return path
+
+
+class DataB(Data):
+    """Concrete data source B."""
+
+    local_path: str = huldra.chz.field(default="/data/b")
+
+    def _create(self) -> Path:
+        path = self.huldra_dir / "data.json"
+        path.write_text(
+            json.dumps({"type": "B", "name": self.name, "path": self.local_path})
+        )
+        return path
+
+
+class Train(huldra.Huldra[Path]):
+    """Training pipeline that accepts any Data subclass."""
+
+    data: Data
+    epochs: int = huldra.chz.field(default=10)
+
+    def _create(self) -> Path:
+        # Load the data dependency (works with any Data subclass)
+        data_path = self.data.load_or_create()
+        data_content = json.loads(data_path.read_text())
+
+        # Create training output
+        output = self.huldra_dir / "model.json"
+        output.write_text(
+            json.dumps(
+                {
+                    "epochs": self.epochs,
+                    "data_type": data_content.get("type"),
+                    "data_name": data_content.get("name"),
+                }
+            )
+        )
+        return output
+
+    def _load(self) -> Path:
+        return self.huldra_dir / "model.json"
