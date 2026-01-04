@@ -25,6 +25,26 @@ async def list_experiments(
     result_status: str | None = Query(None, description="Filter by result status"),
     attempt_status: str | None = Query(None, description="Filter by attempt status"),
     namespace: str | None = Query(None, description="Filter by namespace prefix"),
+    backend: str | None = Query(
+        None, description="Filter by backend (local, submitit)"
+    ),
+    hostname: str | None = Query(None, description="Filter by hostname"),
+    user: str | None = Query(None, description="Filter by user"),
+    started_after: str | None = Query(
+        None, description="Filter experiments started after this ISO datetime"
+    ),
+    started_before: str | None = Query(
+        None, description="Filter experiments started before this ISO datetime"
+    ),
+    updated_after: str | None = Query(
+        None, description="Filter experiments updated after this ISO datetime"
+    ),
+    updated_before: str | None = Query(
+        None, description="Filter experiments updated before this ISO datetime"
+    ),
+    config_filter: str | None = Query(
+        None, description="Filter by config field (format: field.path=value)"
+    ),
     limit: int = Query(100, ge=1, le=1000, description="Maximum number of results"),
     offset: int = Query(0, ge=0, description="Offset for pagination"),
 ) -> ExperimentList:
@@ -33,6 +53,14 @@ async def list_experiments(
         result_status=result_status,
         attempt_status=attempt_status,
         namespace_prefix=namespace,
+        backend=backend,
+        hostname=hostname,
+        user=user,
+        started_after=started_after,
+        started_before=started_before,
+        updated_after=updated_after,
+        updated_before=updated_before,
+        config_filter=config_filter,
     )
 
     # Apply pagination
@@ -57,4 +85,3 @@ async def get_experiment(namespace: str, huldra_hash: str) -> ExperimentDetail:
 async def dashboard_stats() -> DashboardStats:
     """Get aggregate statistics for the dashboard."""
     return get_stats()
-

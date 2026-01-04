@@ -195,6 +195,55 @@ def test_exists_reflects_success_state(huldra_tmp_root) -> None:
     assert obj.exists() is True
 ```
 
+### Test Coverage Requirements
+
+**ALWAYS write extensive tests when adding new features.** Tests should cover:
+
+1. **Happy path** - The feature works as expected with valid inputs
+2. **Edge cases** - Empty inputs, boundary values, None/null values
+3. **Filter combinations** - When adding filters, test each filter individually AND in combination
+4. **Error cases** - Invalid inputs, missing data, malformed requests
+5. **Integration** - Test the full stack (API endpoints, not just internal functions)
+
+For dashboard features specifically:
+- Add tests in `tests/dashboard/test_scanner.py` for scanner/filtering logic
+- Add tests in `tests/dashboard/test_api.py` for API endpoint behavior
+- Update `dashboard-frontend/src/api.test.ts` for frontend schema validation
+
+Example test structure for a new filter:
+```python
+def test_filter_by_new_field(huldra_tmp_root) -> None:
+    """Test filtering by the new field."""
+    # Setup: create experiments with different field values
+    # Test: filter returns only matching experiments
+    # Verify: correct count and correct experiments returned
+
+def test_filter_by_new_field_no_match(huldra_tmp_root) -> None:
+    """Test filter returns empty when no experiments match."""
+
+def test_filter_by_new_field_combined(huldra_tmp_root) -> None:
+    """Test new filter works in combination with existing filters."""
+```
+
+### Dashboard Test Performance
+
+**Use module-scoped fixtures for read-only tests.** Creating experiments is slow, so:
+
+1. **Prefer `populated_huldra_root`** (module-scoped) over `temp_huldra_root` (function-scoped)
+2. **Extend `_create_populated_experiments()`** in `conftest.py` when you need new test data
+3. **Only use `temp_huldra_root`** when tests must mutate state or need isolated data
+
+```python
+# Good - uses shared fixture, fast
+def test_filter_by_backend(client: TestClient, populated_huldra_root: Path) -> None:
+    response = client.get("/api/experiments?backend=local")
+    assert response.json()["total"] == 3  # Uses pre-created data
+
+# Slow - creates experiments per test (avoid unless necessary)
+def test_something(client: TestClient, temp_huldra_root: Path) -> None:
+    create_experiment_from_huldra(...)  # Slow!
+```
+
 ---
 
 ## Commit Guidelines

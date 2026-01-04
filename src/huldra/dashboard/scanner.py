@@ -1,5 +1,6 @@
 """Filesystem scanner for discovering and parsing Huldra experiment state."""
 
+import datetime as _dt
 from collections import defaultdict
 from collections.abc import Iterator
 from pathlib import Path
@@ -59,6 +60,10 @@ def _state_to_summary(
         attempt_number=attempt.number if attempt else None,
         updated_at=state.updated_at,
         started_at=attempt.started_at if attempt else None,
+        # Additional fields for filtering
+        backend=attempt.backend if attempt else None,
+        hostname=attempt.owner.hostname if attempt else None,
+        user=attempt.owner.user if attempt else None,
     )
 
 
@@ -103,11 +108,49 @@ def _find_experiment_dirs(root: Path) -> list[Path]:
     return experiments
 
 
+def _parse_datetime(value: str | None) -> _dt.datetime | None:
+    """Parse ISO datetime string to datetime object."""
+    if not value:
+        return None
+    dt = _dt.datetime.fromisoformat(value)
+    if dt.tzinfo is None:
+        dt = dt.replace(tzinfo=_dt.timezone.utc)
+    return dt
+
+
+def _get_nested_value(data: dict, path: str) -> str | int | float | bool | None:
+    """
+    Get a nested value from a dict using dot notation.
+
+    Example: _get_nested_value({"a": {"b": 1}}, "a.b") -> 1
+    """
+    keys = path.split(".")
+    current = data
+    for key in keys:
+        if not isinstance(current, dict):
+            return None
+        if key not in current:
+            return None
+        current = current[key]
+    # Only return primitive values that can be compared as strings
+    if isinstance(current, (str, int, float, bool)):
+        return current
+    return None
+
+
 def scan_experiments(
     *,
     result_status: str | None = None,
     attempt_status: str | None = None,
     namespace_prefix: str | None = None,
+    backend: str | None = None,
+    hostname: str | None = None,
+    user: str | None = None,
+    started_after: str | None = None,
+    started_before: str | None = None,
+    updated_after: str | None = None,
+    updated_before: str | None = None,
+    config_filter: str | None = None,
 ) -> list[ExperimentSummary]:
     """
     Scan the filesystem for Huldra experiments.
@@ -116,11 +159,31 @@ def scan_experiments(
         result_status: Filter by result status (absent, incomplete, success, failed)
         attempt_status: Filter by attempt status (queued, running, success, failed, etc.)
         namespace_prefix: Filter by namespace prefix
+        backend: Filter by backend (local, submitit)
+        hostname: Filter by hostname
+        user: Filter by user who ran the experiment
+        started_after: Filter experiments started after this ISO datetime
+        started_before: Filter experiments started before this ISO datetime
+        updated_after: Filter experiments updated after this ISO datetime
+        updated_before: Filter experiments updated before this ISO datetime
+        config_filter: Filter by config field in format "field.path=value"
 
     Returns:
         List of experiment summaries, sorted by updated_at (newest first)
     """
     experiments: list[ExperimentSummary] = []
+
+    # Parse datetime filters
+    started_after_dt = _parse_datetime(started_after)
+    started_before_dt = _parse_datetime(started_before)
+    updated_after_dt = _parse_datetime(updated_after)
+    updated_before_dt = _parse_datetime(updated_before)
+
+    # Parse config filter (format: "field.path=value")
+    config_field: str | None = None
+    config_value: str | None = None
+    if config_filter and "=" in config_filter:
+        config_field, config_value = config_filter.split("=", 1)
 
     for root in _iter_roots():
         for experiment_dir in _find_experiment_dirs(root):
@@ -136,6 +199,49 @@ def scan_experiments(
                 continue
             if namespace_prefix and not summary.namespace.startswith(namespace_prefix):
                 continue
+            if backend and summary.backend != backend:
+                continue
+            if hostname and summary.hostname != hostname:
+                continue
+            if user and summary.user != user:
+                continue
+
+            # Date filters
+            if started_after_dt or started_before_dt:
+                started_dt = _parse_datetime(summary.started_at)
+                if started_dt:
+                    if started_after_dt and started_dt < started_after_dt:
+                        continue
+                    if started_before_dt and started_dt > started_before_dt:
+                        continue
+                elif started_after_dt or started_before_dt:
+                    # No started_at but we're filtering by it - exclude
+                    continue
+
+            if updated_after_dt or updated_before_dt:
+                updated_dt = _parse_datetime(summary.updated_at)
+                if updated_dt:
+                    if updated_after_dt and updated_dt < updated_after_dt:
+                        continue
+                    if updated_before_dt and updated_dt > updated_before_dt:
+                        continue
+                elif updated_after_dt or updated_before_dt:
+                    # No updated_at but we're filtering by it - exclude
+                    continue
+
+            # Config field filter - requires reading metadata
+            if config_field and config_value is not None:
+                metadata = MetadataManager.read_metadata_raw(experiment_dir)
+                if metadata:
+                    huldra_obj = metadata.get("huldra_obj")
+                    if isinstance(huldra_obj, dict):
+                        actual_value = _get_nested_value(huldra_obj, config_field)
+                        if str(actual_value) != config_value:
+                            continue
+                    else:
+                        continue
+                else:
+                    continue
 
             experiments.append(summary)
 

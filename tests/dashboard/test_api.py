@@ -1,4 +1,13 @@
-"""Tests for Dashboard API routes."""
+"""Tests for Dashboard API routes.
+
+NOTE: For performance, use module-scoped fixtures (like `populated_huldra_root`)
+instead of creating experiments in each test with `temp_huldra_root`. The shared
+fixture creates experiments once and reuses them across all tests in the module.
+
+See `conftest.py:_create_populated_experiments()` for the fixture data setup.
+When adding new filter tests, prefer extending the shared fixture data rather
+than creating experiments per-test.
+"""
 
 from pathlib import Path
 
@@ -151,7 +160,7 @@ def test_get_experiment_detail_with_attempt(
     assert data["attempt_status"] == "running"
     assert data["attempt"] is not None
     assert data["attempt"]["status"] == "running"
-    assert data["attempt"]["owner"]["host"] == "test-host"
+    assert data["attempt"]["owner"]["host"] == "gpu-02"
 
 
 def test_get_experiment_not_found(
@@ -230,3 +239,223 @@ def test_experiments_with_dependencies(
     assert "TrainModel" in class_names
     assert "EvalModel" in class_names
     assert "MultiDependencyPipeline" in class_names
+
+
+# =============================================================================
+# Tests for new filtering API endpoints: backend, hostname, user, date range, config
+# These tests use the shared populated_huldra_root fixture which has:
+# - dataset1: success, local, gpu-01, alice, 2025-01-01
+# - train1: success, local, gpu-01, alice, 2025-01-02
+# - train2: running, submitit, gpu-02, bob, 2025-01-03
+# - eval1: failed, local, gpu-02, alice, 2025-01-04
+# - loader: success, submitit, gpu-01, bob, 2024-06-01
+# - dataset2: absent, no attempt
+# =============================================================================
+
+
+def test_list_experiments_filter_by_backend(
+    client: TestClient, populated_huldra_root: Path
+) -> None:
+    """Test filtering experiments by backend via API."""
+    # Filter by local backend (dataset1, train1, eval1 = 3 experiments)
+    response = client.get("/api/experiments?backend=local")
+    assert response.status_code == 200
+    data = response.json()
+    assert data["total"] == 3
+    for exp in data["experiments"]:
+        assert exp["backend"] == "local"
+
+    # Filter by submitit backend (train2, loader = 2 experiments)
+    response = client.get("/api/experiments?backend=submitit")
+    assert response.status_code == 200
+    data = response.json()
+    assert data["total"] == 2
+    for exp in data["experiments"]:
+        assert exp["backend"] == "submitit"
+
+
+def test_list_experiments_filter_by_hostname(
+    client: TestClient, populated_huldra_root: Path
+) -> None:
+    """Test filtering experiments by hostname via API."""
+    # Filter by gpu-01 (dataset1, train1, loader = 3 experiments)
+    response = client.get("/api/experiments?hostname=gpu-01")
+    assert response.status_code == 200
+    data = response.json()
+    assert data["total"] == 3
+    for exp in data["experiments"]:
+        assert exp["hostname"] == "gpu-01"
+
+    # Filter by gpu-02 (train2, eval1 = 2 experiments)
+    response = client.get("/api/experiments?hostname=gpu-02")
+    assert response.status_code == 200
+    data = response.json()
+    assert data["total"] == 2
+    for exp in data["experiments"]:
+        assert exp["hostname"] == "gpu-02"
+
+
+def test_list_experiments_filter_by_user(
+    client: TestClient, populated_huldra_root: Path
+) -> None:
+    """Test filtering experiments by user via API."""
+    # Filter by alice (dataset1, train1, eval1 = 3 experiments)
+    response = client.get("/api/experiments?user=alice")
+    assert response.status_code == 200
+    data = response.json()
+    assert data["total"] == 3
+    for exp in data["experiments"]:
+        assert exp["user"] == "alice"
+
+    # Filter by bob (train2, loader = 2 experiments)
+    response = client.get("/api/experiments?user=bob")
+    assert response.status_code == 200
+    data = response.json()
+    assert data["total"] == 2
+    for exp in data["experiments"]:
+        assert exp["user"] == "bob"
+
+
+def test_list_experiments_filter_by_started_after(
+    client: TestClient, populated_huldra_root: Path
+) -> None:
+    """Test filtering experiments by started_after via API."""
+    # Filter for experiments started after 2025-01-01 (train1, train2, eval1 = 3)
+    response = client.get("/api/experiments?started_after=2025-01-01T12:00:00%2B00:00")
+    assert response.status_code == 200
+    data = response.json()
+    assert data["total"] == 3
+
+
+def test_list_experiments_filter_by_started_before(
+    client: TestClient, populated_huldra_root: Path
+) -> None:
+    """Test filtering experiments by started_before via API."""
+    # Filter for experiments started before 2025-01-01 (loader = 1)
+    response = client.get("/api/experiments?started_before=2025-01-01T00:00:00%2B00:00")
+    assert response.status_code == 200
+    data = response.json()
+    assert data["total"] == 1
+    assert data["experiments"][0]["started_at"] == "2024-06-01T10:00:00+00:00"
+
+
+def test_list_experiments_filter_by_updated_after(
+    client: TestClient, populated_huldra_root: Path
+) -> None:
+    """Test filtering experiments by updated_after via API."""
+    # Filter for experiments updated after 2025-01-03 (eval1 = 1)
+    response = client.get("/api/experiments?updated_after=2025-01-03T12:00:00%2B00:00")
+    assert response.status_code == 200
+    data = response.json()
+    assert data["total"] == 1
+    assert data["experiments"][0]["updated_at"] == "2025-01-04T11:00:00+00:00"
+
+
+def test_list_experiments_filter_by_updated_before(
+    client: TestClient, populated_huldra_root: Path
+) -> None:
+    """Test filtering experiments by updated_before via API."""
+    # Filter for experiments updated before 2025-01-01 (loader = 1)
+    response = client.get("/api/experiments?updated_before=2025-01-01T00:00:00%2B00:00")
+    assert response.status_code == 200
+    data = response.json()
+    assert data["total"] == 1
+    assert data["experiments"][0]["updated_at"] == "2024-06-01T11:00:00+00:00"
+
+
+def test_list_experiments_filter_by_config_filter(
+    client: TestClient, populated_huldra_root: Path
+) -> None:
+    """Test filtering experiments by config_filter via API."""
+    # Filter by config name=mnist (dataset1 only)
+    response = client.get("/api/experiments?config_filter=name%3Dmnist")
+    assert response.status_code == 200
+    data = response.json()
+    assert data["total"] == 1
+    assert data["experiments"][0]["class_name"] == "PrepareDataset"
+
+    # Filter by config name=cifar (dataset2 only)
+    response = client.get("/api/experiments?config_filter=name%3Dcifar")
+    assert response.status_code == 200
+    data = response.json()
+    assert data["total"] == 1
+
+
+def test_list_experiments_combined_new_filters(
+    client: TestClient, populated_huldra_root: Path
+) -> None:
+    """Test combining multiple new filters via API."""
+    # Combine backend=local + user=alice (dataset1, train1, eval1 = 3)
+    response = client.get("/api/experiments?backend=local&user=alice")
+    assert response.status_code == 200
+    data = response.json()
+    assert data["total"] == 3
+
+    # Combine backend=local + hostname=gpu-01 (dataset1, train1 = 2)
+    response = client.get("/api/experiments?backend=local&hostname=gpu-01")
+    assert response.status_code == 200
+    data = response.json()
+    assert data["total"] == 2
+
+    # Combine backend=submitit + hostname=gpu-01 (loader = 1)
+    response = client.get("/api/experiments?backend=submitit&hostname=gpu-01")
+    assert response.status_code == 200
+    data = response.json()
+    assert data["total"] == 1
+
+    # Combine result_status=success + user=alice (dataset1, train1 = 2)
+    response = client.get("/api/experiments?result_status=success&user=alice")
+    assert response.status_code == 200
+    data = response.json()
+    assert data["total"] == 2
+
+
+def test_list_experiments_new_fields_in_response(
+    client: TestClient, populated_huldra_root: Path
+) -> None:
+    """Test that new fields (backend, hostname, user) are included in response."""
+    response = client.get("/api/experiments")
+    assert response.status_code == 200
+    data = response.json()
+
+    # Check structure of returned experiments - all with attempts should have new fields
+    for exp in data["experiments"]:
+        # Experiments with attempts should have these fields
+        if exp["attempt_status"] is not None:
+            assert "backend" in exp
+            assert "hostname" in exp
+            assert "user" in exp
+
+
+def test_list_experiments_filter_no_match_returns_empty(
+    client: TestClient, populated_huldra_root: Path
+) -> None:
+    """Test that filters return empty list when no experiments match."""
+    # Test each filter type returns empty when no match
+    response = client.get("/api/experiments?backend=nonexistent")
+    assert response.status_code == 200
+    assert response.json()["total"] == 0
+
+    response = client.get("/api/experiments?hostname=nonexistent")
+    assert response.status_code == 200
+    assert response.json()["total"] == 0
+
+    response = client.get("/api/experiments?user=nonexistent")
+    assert response.status_code == 200
+    assert response.json()["total"] == 0
+
+    response = client.get("/api/experiments?config_filter=name%3Dnonexistent")
+    assert response.status_code == 200
+    assert response.json()["total"] == 0
+
+    response = client.get("/api/experiments?hostname=nonexistent")
+    assert response.status_code == 200
+    assert response.json()["total"] == 0
+
+    response = client.get("/api/experiments?user=nonexistent")
+    assert response.status_code == 200
+    assert response.json()["total"] == 0
+
+    response = client.get("/api/experiments?config_filter=name%3Dnonexistent")
+    assert response.status_code == 200
+    assert response.json()["total"] == 0

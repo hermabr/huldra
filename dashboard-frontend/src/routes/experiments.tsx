@@ -36,11 +36,18 @@ const ATTEMPT_STATUSES = [
   "cancelled",
   "preempted",
 ] as const;
+const BACKENDS = ["", "local", "submitit"] as const;
 
 function ExperimentsPage() {
   const [resultFilter, setResultFilter] = useState("");
   const [attemptFilter, setAttemptFilter] = useState("");
   const [namespaceFilter, setNamespaceFilter] = useState("");
+  const [backendFilter, setBackendFilter] = useState("");
+  const [hostnameFilter, setHostnameFilter] = useState("");
+  const [userFilter, setUserFilter] = useState("");
+  const [startedAfter, setStartedAfter] = useState("");
+  const [startedBefore, setStartedBefore] = useState("");
+  const [configFilter, setConfigFilter] = useState("");
   const [page, setPage] = useState(0);
   const limit = 20;
 
@@ -48,11 +55,41 @@ function ExperimentsPage() {
     result_status: resultFilter || undefined,
     attempt_status: attemptFilter || undefined,
     namespace: namespaceFilter || undefined,
+    backend: backendFilter || undefined,
+    hostname: hostnameFilter || undefined,
+    user: userFilter || undefined,
+    started_after: startedAfter || undefined,
+    started_before: startedBefore || undefined,
+    config_filter: configFilter || undefined,
     limit,
     offset: page * limit,
   });
 
   const totalPages = data ? Math.ceil(data.total / limit) : 0;
+
+  const resetFilters = () => {
+    setResultFilter("");
+    setAttemptFilter("");
+    setNamespaceFilter("");
+    setBackendFilter("");
+    setHostnameFilter("");
+    setUserFilter("");
+    setStartedAfter("");
+    setStartedBefore("");
+    setConfigFilter("");
+    setPage(0);
+  };
+
+  const hasFilters =
+    resultFilter ||
+    attemptFilter ||
+    namespaceFilter ||
+    backendFilter ||
+    hostnameFilter ||
+    userFilter ||
+    startedAfter ||
+    startedBefore ||
+    configFilter;
 
   return (
     <div className="max-w-7xl mx-auto">
@@ -65,12 +102,18 @@ function ExperimentsPage() {
 
       {/* Filters */}
       <Card className="mb-6">
-        <CardHeader>
+        <CardHeader className="flex flex-row items-center justify-between">
           <CardTitle>Filters</CardTitle>
+          {hasFilters && (
+            <Button variant="ghost" size="sm" onClick={resetFilters}>
+              Clear filters
+            </Button>
+          )}
         </CardHeader>
         <CardContent>
-          <div className="flex flex-wrap gap-4">
-            <div className="flex-1 min-w-[200px]">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+            {/* Namespace filter */}
+            <div>
               <label className="mb-1 block text-sm text-muted-foreground">
                 Namespace
               </label>
@@ -84,6 +127,8 @@ function ExperimentsPage() {
                 }}
               />
             </div>
+
+            {/* Result status filter */}
             <div>
               <label className="mb-1 block text-sm text-muted-foreground">
                 Result Status
@@ -94,7 +139,7 @@ function ExperimentsPage() {
                   setResultFilter(e.target.value);
                   setPage(0);
                 }}
-                className="h-10 rounded-md border border-input bg-background px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                className="h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
               >
                 {RESULT_STATUSES.map((status) => (
                   <option key={status} value={status}>
@@ -103,6 +148,8 @@ function ExperimentsPage() {
                 ))}
               </select>
             </div>
+
+            {/* Attempt status filter */}
             <div>
               <label className="mb-1 block text-sm text-muted-foreground">
                 Attempt Status
@@ -113,7 +160,7 @@ function ExperimentsPage() {
                   setAttemptFilter(e.target.value);
                   setPage(0);
                 }}
-                className="h-10 rounded-md border border-input bg-background px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                className="h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
               >
                 {ATTEMPT_STATUSES.map((status) => (
                   <option key={status} value={status}>
@@ -121,6 +168,105 @@ function ExperimentsPage() {
                   </option>
                 ))}
               </select>
+            </div>
+
+            {/* Backend filter */}
+            <div>
+              <label className="mb-1 block text-sm text-muted-foreground">
+                Backend
+              </label>
+              <select
+                value={backendFilter}
+                onChange={(e) => {
+                  setBackendFilter(e.target.value);
+                  setPage(0);
+                }}
+                className="h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+              >
+                {BACKENDS.map((backend) => (
+                  <option key={backend} value={backend}>
+                    {backend || "All Backends"}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            {/* Hostname filter */}
+            <div>
+              <label className="mb-1 block text-sm text-muted-foreground">
+                Hostname
+              </label>
+              <Input
+                type="text"
+                placeholder="Filter by hostname..."
+                value={hostnameFilter}
+                onChange={(e) => {
+                  setHostnameFilter(e.target.value);
+                  setPage(0);
+                }}
+              />
+            </div>
+
+            {/* User filter */}
+            <div>
+              <label className="mb-1 block text-sm text-muted-foreground">
+                User
+              </label>
+              <Input
+                type="text"
+                placeholder="Filter by user..."
+                value={userFilter}
+                onChange={(e) => {
+                  setUserFilter(e.target.value);
+                  setPage(0);
+                }}
+              />
+            </div>
+
+            {/* Started after filter */}
+            <div>
+              <label className="mb-1 block text-sm text-muted-foreground">
+                Started After
+              </label>
+              <Input
+                type="datetime-local"
+                value={startedAfter}
+                onChange={(e) => {
+                  setStartedAfter(e.target.value ? e.target.value + ":00" : "");
+                  setPage(0);
+                }}
+              />
+            </div>
+
+            {/* Started before filter */}
+            <div>
+              <label className="mb-1 block text-sm text-muted-foreground">
+                Started Before
+              </label>
+              <Input
+                type="datetime-local"
+                value={startedBefore}
+                onChange={(e) => {
+                  setStartedBefore(e.target.value ? e.target.value + ":00" : "");
+                  setPage(0);
+                }}
+              />
+            </div>
+
+            {/* Config filter */}
+            <div className="md:col-span-2">
+              <label className="mb-1 block text-sm text-muted-foreground">
+                Config Filter
+              </label>
+              <Input
+                type="text"
+                placeholder="field.path=value (e.g., model.name=gpt-4)"
+                value={configFilter}
+                onChange={(e) => {
+                  setConfigFilter(e.target.value);
+                  setPage(0);
+                }}
+              />
             </div>
           </div>
         </CardContent>
@@ -166,6 +312,9 @@ function ExperimentsPage() {
                 <TableHead>Hash</TableHead>
                 <TableHead>Result</TableHead>
                 <TableHead>Attempt</TableHead>
+                <TableHead>Backend</TableHead>
+                <TableHead>Host</TableHead>
+                <TableHead>User</TableHead>
                 <TableHead>Updated</TableHead>
               </TableRow>
             </TableHeader>
@@ -199,13 +348,22 @@ function ExperimentsPage() {
                     {exp.attempt_status ? (
                       <StatusBadge status={exp.attempt_status} type="attempt" />
                     ) : (
-                      <span className="text-muted-foreground">—</span>
+                      <span className="text-muted-foreground">-</span>
                     )}
+                  </TableCell>
+                  <TableCell className="text-sm text-muted-foreground">
+                    {exp.backend || "-"}
+                  </TableCell>
+                  <TableCell className="text-sm text-muted-foreground max-w-[150px] truncate" title={exp.hostname || undefined}>
+                    {exp.hostname || "-"}
+                  </TableCell>
+                  <TableCell className="text-sm text-muted-foreground">
+                    {exp.user || "-"}
                   </TableCell>
                   <TableCell className="whitespace-nowrap text-sm text-muted-foreground">
                     {exp.updated_at
                       ? new Date(exp.updated_at).toLocaleString()
-                      : "—"}
+                      : "-"}
                   </TableCell>
                 </TableRow>
               ))}

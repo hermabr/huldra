@@ -1,4 +1,22 @@
-"""Pytest fixtures for dashboard tests."""
+"""Pytest fixtures for dashboard tests.
+
+FIXTURE SELECTION GUIDE
+=======================
+
+Use `populated_huldra_root` (module-scoped, fast) when:
+- Test only reads/queries existing experiments
+- Test doesn't need specific isolated data
+- Test can work with the shared fixture data (see _create_populated_experiments)
+
+Use `temp_huldra_root` (function-scoped, slow) when:
+- Test needs an empty directory (e.g., testing empty state)
+- Test needs to create experiments with specific attributes not in the shared fixture
+- Test mutates experiment state
+- Test needs isolated data to verify "no match" scenarios
+
+The populated fixture creates experiments once per test module and reuses them,
+which is significantly faster than creating experiments for each test.
+"""
 
 from __future__ import annotations
 
@@ -33,7 +51,11 @@ def client() -> TestClient:
 def temp_huldra_root(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> Generator[Path, None, None]:
-    """Create a temporary Huldra root directory and configure it."""
+    """Create a temporary Huldra root directory and configure it.
+
+    Use this fixture when tests need isolated/empty state or must create
+    specific experiments. For read-only tests, prefer `populated_huldra_root`.
+    """
     monkeypatch.setattr(HULDRA_CONFIG, "base_root", tmp_path)
     monkeypatch.setattr(HULDRA_CONFIG, "ignore_git_diff", True)
     monkeypatch.setattr(HULDRA_CONFIG, "poll_interval", 0.01)
@@ -87,6 +109,11 @@ def create_experiment_from_huldra(
     huldra_obj: object,
     result_status: str = "success",
     attempt_status: str | None = None,
+    backend: str = "local",
+    hostname: str = "test-host",
+    user: str = "testuser",
+    started_at: str = "2025-01-01T11:00:00+00:00",
+    updated_at: str = "2025-01-01T12:00:00+00:00",
 ) -> Path:
     """
     Create an experiment directory from an actual Huldra object.
@@ -98,6 +125,11 @@ def create_experiment_from_huldra(
         huldra_obj: A Huldra subclass instance
         result_status: One of: absent, incomplete, success, failed
         attempt_status: Optional attempt status (queued, running, success, failed, etc.)
+        backend: Backend type (local, submitit)
+        hostname: Hostname where the experiment ran
+        user: User who ran the experiment
+        started_at: ISO timestamp for when the experiment started
+        updated_at: ISO timestamp for when the experiment was last updated
 
     Returns:
         Path to the created experiment directory
@@ -120,7 +152,7 @@ def create_experiment_from_huldra(
     elif result_status == "incomplete":
         result = {"status": "incomplete"}
     elif result_status == "success":
-        result = {"status": "success", "created_at": "2025-01-01T12:00:00+00:00"}
+        result = {"status": "success", "created_at": updated_at}
     else:  # failed
         result = {"status": "failed"}
 
@@ -130,21 +162,22 @@ def create_experiment_from_huldra(
         attempt = {
             "id": f"attempt-{HuldraSerializer.compute_hash(huldra_obj)[:8]}",
             "number": 1,
-            "backend": "local",
+            "backend": backend,
             "status": attempt_status,
-            "started_at": "2025-01-01T11:00:00+00:00",
-            "heartbeat_at": "2025-01-01T11:30:00+00:00",
+            "started_at": started_at,
+            "heartbeat_at": started_at,
             "lease_duration_sec": 120.0,
             "lease_expires_at": "2025-01-01T13:00:00+00:00",
             "owner": {
                 "pid": 12345,
-                "host": "test-host",
-                "user": "testuser",
+                "host": hostname,
+                "hostname": hostname,
+                "user": user,
             },
             "scheduler": {},
         }
         if attempt_status in ("success", "failed", "crashed", "cancelled", "preempted"):
-            attempt["ended_at"] = "2025-01-01T12:00:00+00:00"
+            attempt["ended_at"] = updated_at
         if attempt_status == "failed":
             attempt["error"] = {
                 "type": "RuntimeError",
@@ -155,7 +188,7 @@ def create_experiment_from_huldra(
         "schema_version": 1,
         "result": result,
         "attempt": attempt,
-        "updated_at": "2025-01-01T12:00:00+00:00",
+        "updated_at": updated_at,
     }
 
     state_path = StateManager.get_state_path(directory)
@@ -169,7 +202,7 @@ def create_experiment_from_huldra(
             json.dumps(
                 {
                     "attempt_id": attempt["id"] if attempt else "unknown",
-                    "created_at": "2025-01-01T12:00:00+00:00",
+                    "created_at": updated_at,
                 }
             )
         )
@@ -180,45 +213,81 @@ def create_experiment_from_huldra(
 def _create_populated_experiments(root: Path) -> None:
     """Create sample experiments in the given root directory.
 
-    Creates experiments with realistic dependencies:
-    - PrepareDataset (success) - base dataset
-    - TrainModel with dependency on PrepareDataset (success)
-    - TrainModel with different params (running)
-    - EvalModel that depends on TrainModel (failed)
-    - DataLoader in different namespace (success)
-    - PrepareDataset with different params (absent)
+    Creates experiments with realistic dependencies and varied attributes
+    for comprehensive filter testing:
+    - PrepareDataset (success, local, gpu-01, alice, 2025-01-01)
+    - TrainModel with dependency on PrepareDataset (success, local, gpu-01, alice, 2025-01-02)
+    - TrainModel with different params (running, submitit, gpu-02, bob, 2025-01-03)
+    - EvalModel that depends on TrainModel (failed, local, gpu-02, alice, 2025-01-04)
+    - DataLoader in different namespace (success, submitit, gpu-01, bob, 2024-06-01)
+    - PrepareDataset with different params (absent, no attempt)
     """
-    # Create a base dataset (successful)
+    # Create a base dataset (successful, local, gpu-01, alice, early 2025)
     dataset1 = PrepareDataset(name="mnist", version="v1")
     create_experiment_from_huldra(
-        dataset1, result_status="success", attempt_status="success"
+        dataset1,
+        result_status="success",
+        attempt_status="success",
+        backend="local",
+        hostname="gpu-01",
+        user="alice",
+        started_at="2025-01-01T10:00:00+00:00",
+        updated_at="2025-01-01T11:00:00+00:00",
     )
 
-    # Create a training run that depends on the dataset (successful)
+    # Create a training run that depends on the dataset (successful, local, gpu-01, alice)
     train1 = TrainModel(lr=0.001, steps=1000, dataset=dataset1)
     create_experiment_from_huldra(
-        train1, result_status="success", attempt_status="success"
+        train1,
+        result_status="success",
+        attempt_status="success",
+        backend="local",
+        hostname="gpu-01",
+        user="alice",
+        started_at="2025-01-02T10:00:00+00:00",
+        updated_at="2025-01-02T11:00:00+00:00",
     )
 
-    # Create another training run with different params (running)
+    # Create another training run with different params (running, submitit, gpu-02, bob)
     train2 = TrainModel(lr=0.0001, steps=2000, dataset=dataset1)
     create_experiment_from_huldra(
-        train2, result_status="incomplete", attempt_status="running"
+        train2,
+        result_status="incomplete",
+        attempt_status="running",
+        backend="submitit",
+        hostname="gpu-02",
+        user="bob",
+        started_at="2025-01-03T10:00:00+00:00",
+        updated_at="2025-01-03T11:00:00+00:00",
     )
 
-    # Create an evaluation that depends on training (failed)
+    # Create an evaluation that depends on training (failed, local, gpu-02, alice)
     eval1 = EvalModel(model=train1, eval_split="test")
     create_experiment_from_huldra(
-        eval1, result_status="failed", attempt_status="failed"
+        eval1,
+        result_status="failed",
+        attempt_status="failed",
+        backend="local",
+        hostname="gpu-02",
+        user="alice",
+        started_at="2025-01-04T10:00:00+00:00",
+        updated_at="2025-01-04T11:00:00+00:00",
     )
 
-    # Create a data loader in a different namespace (successful)
+    # Create a data loader in a different namespace (successful, submitit, gpu-01, bob, 2024)
     loader = DataLoader(source="s3", format="parquet")
     create_experiment_from_huldra(
-        loader, result_status="success", attempt_status="success"
+        loader,
+        result_status="success",
+        attempt_status="success",
+        backend="submitit",
+        hostname="gpu-01",
+        user="bob",
+        started_at="2024-06-01T10:00:00+00:00",
+        updated_at="2024-06-01T11:00:00+00:00",
     )
 
-    # Create another dataset with absent status
+    # Create another dataset with absent status (no attempt)
     dataset2 = PrepareDataset(name="cifar", version="v2")
     create_experiment_from_huldra(dataset2, result_status="absent", attempt_status=None)
 
@@ -227,8 +296,10 @@ def _create_populated_experiments(root: Path) -> None:
 def populated_huldra_root(_configure_huldra_for_module: Path) -> Path:
     """Create a module-scoped Huldra root with sample experiments.
 
-    This is much faster than creating experiments for each test since
-    the experiments are created once per module and reused.
+    PREFER THIS FIXTURE for read-only tests. Experiments are created once per
+    module and reused, which is much faster than creating them per-test.
+
+    See _create_populated_experiments() for the exact data created.
     """
     root = _configure_huldra_for_module
     _create_populated_experiments(root)

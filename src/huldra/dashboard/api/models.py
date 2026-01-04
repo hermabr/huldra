@@ -30,6 +30,10 @@ class ExperimentSummary(BaseModel):
     attempt_number: int | None = None
     updated_at: str | None = None
     started_at: str | None = None
+    # Additional fields for filtering
+    backend: str | None = None
+    hostname: str | None = None
+    user: str | None = None
 
 
 class ExperimentDetail(ExperimentSummary):

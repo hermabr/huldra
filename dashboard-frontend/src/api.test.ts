@@ -60,6 +60,9 @@ const mockData = {
     attempt_number: 1,
     updated_at: "2025-01-01T12:00:00+00:00",
     started_at: "2025-01-01T11:00:00+00:00",
+    backend: "local",
+    hostname: "test-host",
+    user: "testuser",
     directory: "/data/my_project/pipelines/TrainModel/abc123def456",
     state: {
       schema_version: 1,
@@ -81,6 +84,7 @@ const mockData = {
       status: "success",
       started_at: "2025-01-01T11:00:00+00:00",
       heartbeat_at: "2025-01-01T11:30:00+00:00",
+      lease_duration_sec: 7200,
       lease_expires_at: "2025-01-01T13:00:00+00:00",
       owner: {
         pid: 12345,
