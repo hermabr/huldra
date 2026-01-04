@@ -7,9 +7,17 @@
 ## Code Quality
 
 ### Typing
-- [ ] Remove all use of `typing.Any`
-- [ ] Change `typing.Optional[T]` to `T | None`
-- [ ] Removing `typing.List` and `typing.Dict` since Python 3.9+ supports built-in generics, such as `list[T]` and `dict[K, V]` over `List[T]` and `Dict[K, V]`
+
+- [x] Remove unnecessary use of `typing.Any` (some uses for truly dynamic data are acceptable)
+  - `src/huldra/core/huldra.py` - uses `Any` for chz kwargs, signal handlers, JSON data
+  - `src/huldra/storage/metadata.py` - uses `Any` for JSON metadata dicts
+  - `src/huldra/storage/state.py` - uses `Any` for JSON state data
+  - `src/huldra/adapters/submitit.py` - uses `Any` for submitit executor/job objects
+  - `src/huldra/serialization/serializer.py` - uses `Any` for generic serialization
+  - `src/huldra/runtime/logging.py` - uses `Any` for holder objects
+  - `src/huldra/dashboard/` - uses `Any` for JSON API data
+- [x] Change `typing.Optional[T]` to `T | None`
+- [x] Change `typing.List` and `typing.Dict` to `list` and `dict` (Python 3.9+)
 
 ### API Design
 - [ ] Rename `hexdigest` to a name that makes more sense (consider making it private)
@@ -45,6 +53,10 @@
 - [ ] Resource tracking - Track peak memory, CPU time, GPU usage during `_create()`
 
 ## Dashboard Features
+
+## Typing/logic
+
+- [ ] Share types and classes, such as pydantic classes between the huldra and the dashboard, rather than defining custom packages for the dashboard api
 
 ### Experiment Management
 

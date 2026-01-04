@@ -4,8 +4,6 @@ from pathlib import Path
 
 from fastapi.testclient import TestClient
 
-from .conftest import create_experiment
-
 
 def test_health_check(client: TestClient) -> None:
     """Test health check endpoint."""
@@ -170,13 +168,10 @@ def test_dashboard_stats(client: TestClient, populated_huldra_root: Path) -> Non
 
 def test_combined_filters(client: TestClient, populated_huldra_root: Path) -> None:
     """Test combining multiple filters."""
-    response = client.get(
-        "/api/experiments?result_status=success&namespace=my_project"
-    )
+    response = client.get("/api/experiments?result_status=success&namespace=my_project")
     assert response.status_code == 200
     data = response.json()
     # Only my_project.pipelines.TrainModel/abc123def456 matches both
     assert data["total"] == 1
     assert data["experiments"][0]["result_status"] == "success"
     assert data["experiments"][0]["namespace"].startswith("my_project")
-

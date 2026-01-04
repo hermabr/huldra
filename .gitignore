@@ -227,3 +227,5 @@ e2e/playwright-report/
 *.tsbuildinfo
 orval.config.js
 vite.config.js
+
+openapi.json

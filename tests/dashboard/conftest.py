@@ -1,7 +1,6 @@
 """Pytest fixtures for dashboard tests."""
 
 import json
-import os
 from pathlib import Path
 from typing import Generator
 
@@ -163,5 +162,3 @@ def populated_huldra_root(temp_huldra_root: Path) -> Path:
     )
 
     return temp_huldra_root
-
-
