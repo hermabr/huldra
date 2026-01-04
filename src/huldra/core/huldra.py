@@ -11,19 +11,22 @@ import time
 import traceback
 from abc import ABC, abstractmethod
 from pathlib import Path
-from typing import Any, Callable, Self, TypeVar, cast, overload
+from types import FrameType
+from typing import Any, Callable, Self, TypedDict, TypeVar, cast, overload
 
 import chz
 import submitit
 from typing_extensions import dataclass_transform
 
 from ..adapters import SubmititAdapter
+from ..adapters.submitit import SubmititJob
 from ..config import HULDRA_CONFIG
 from ..errors import MISSING, HuldraComputeError, HuldraWaitTimeout
 from ..runtime import current_holder
 from ..runtime.logging import enter_holder, get_logger, log, write_separator
 from ..runtime.tracebacks import format_traceback
 from ..serialization import HuldraSerializer
+from ..serialization.serializer import JsonValue
 from ..storage import HuldraMetadata, MetadataManager, StateManager
 from ..storage.state import (
     _HuldraState,
@@ -35,6 +38,25 @@ from ..storage.state import (
     _StateResultFailed,
     _StateResultSuccess,
 )
+
+
+class _SubmititEnvInfo(TypedDict, total=False):
+    """Environment info collected for submitit jobs."""
+
+    backend: str
+    slurm_job_id: str | None
+    pid: int
+    host: str
+    user: str
+    started_at: str
+    command: str
+
+
+class _CallerInfo(TypedDict, total=False):
+    """Caller location info for logging."""
+
+    huldra_caller_file: str
+    huldra_caller_line: int
 
 
 @dataclass_transform(
@@ -61,9 +83,9 @@ class Huldra[T](ABC):
         cls,
         *,
         version_controlled: bool | None = None,
-        version: Any | None = None,
-        typecheck: Any | None = None,
-        **kwargs: Any,
+        version: str | None = None,
+        typecheck: bool | None = None,
+        **kwargs: object,
     ) -> None:
         super().__init_subclass__(**kwargs)
         if cls.__name__ == "Huldra" and cls.__module__ == __name__:
@@ -87,7 +109,7 @@ class Huldra[T](ABC):
         if materialized:
             annotations.update(materialized)
 
-        FieldType: type[Any] | None
+        FieldType: type[object] | None
         try:
             from chz.data_model import Field as _ChzField  # type: ignore
         except Exception:  # pragma: no cover
@@ -102,7 +124,7 @@ class Huldra[T](ABC):
         if annotations:
             type.__setattr__(cls, "__annotations__", annotations)
 
-        chz_kwargs: dict[str, Any] = {}
+        chz_kwargs: dict[str, str | bool] = {}
         if version is not None:
             chz_kwargs["version"] = version
         if typecheck is not None:
@@ -185,12 +207,12 @@ class Huldra[T](ABC):
         """
         return HULDRA_CONFIG.raw_dir
 
-    def to_dict(self: Self) -> dict[str, Any]:
+    def to_dict(self: Self) -> JsonValue:
         """Convert to dictionary."""
         return HuldraSerializer.to_dict(self)
 
     @classmethod
-    def from_dict(cls, data: dict[str, Any]) -> "Huldra":
+    def from_dict(cls, data: JsonValue) -> "Huldra":
         """Reconstruct from dictionary."""
         return HuldraSerializer.from_dict(data)
 
@@ -294,7 +316,7 @@ class Huldra[T](ABC):
                 # transitions (create/wait) and error cases, but suppress repeated
                 # "success->load" lines and the raw separator on successful loads.
                 caller_frame = inspect.currentframe()
-                caller_info: dict[str, Any] = {}
+                caller_info: _CallerInfo = {}
                 if caller_frame is not None:
                     # Walk up the stack to find the caller outside of huldra package
                     huldra_pkg_dir = str(Path(__file__).parent.parent)
@@ -429,8 +451,8 @@ class Huldra[T](ABC):
         self,
         adapter: SubmititAdapter,
         directory: Path,
-        on_job_id: Callable[[Any], None] | None,
-    ) -> Any | None:
+        on_job_id: Callable[[str], None] | None,
+    ) -> SubmititJob | None:
         """Submit job once without waiting (fire-and-forget mode)."""
         logger = get_logger()
         self._reconcile(directory, adapter=adapter)
@@ -634,9 +656,9 @@ class Huldra[T](ABC):
             finally:
                 StateManager.release_lock(lock_fd, lock_path)
 
-    def _collect_submitit_env(self: Self) -> dict[str, Any]:
+    def _collect_submitit_env(self: Self) -> _SubmititEnvInfo:
         """Collect submitit/slurm environment information."""
-        info = {
+        info: _SubmititEnvInfo = {
             "backend": "local",
             "slurm_job_id": None,
             "pid": os.getpid(),
@@ -839,7 +861,7 @@ class Huldra[T](ABC):
     ) -> None:
         """Set up signal handlers for graceful preemption."""
 
-        def handle_signal(signum: int, frame: Any) -> None:
+        def handle_signal(signum: int, frame: FrameType | None) -> None:
             try:
                 StateManager.finish_attempt_preempted(
                     directory,

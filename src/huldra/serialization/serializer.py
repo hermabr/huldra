@@ -14,13 +14,18 @@ from ..errors import _HuldraMissing
 from pydantic import BaseModel as PydanticBaseModel
 
 
+# Type alias for JSON-serializable values. We use Any here because this serialization
+# library handles arbitrary user-defined objects that we cannot know at compile time.
+JsonValue = Any
+
+
 class HuldraSerializer:
     """Handles serialization, deserialization, and hashing of Huldra objects."""
 
     CLASS_MARKER = "__class__"
 
     @staticmethod
-    def get_classname(obj: Any) -> str:
+    def get_classname(obj: object) -> str:
         """Get fully qualified class name."""
         classname = obj.__class__.__module__
         if classname == "__main__":
@@ -31,7 +36,7 @@ class HuldraSerializer:
         return f"{classname}.{obj.__class__.__qualname__}"
 
     @classmethod
-    def to_dict(cls, obj: Any) -> Any:
+    def to_dict(cls, obj: object) -> JsonValue:
         """Convert object to JSON-serializable dictionary."""
         if isinstance(obj, _HuldraMissing):
             raise ValueError("Cannot serialize Huldra.MISSING")
@@ -54,7 +59,7 @@ class HuldraSerializer:
         return obj
 
     @classmethod
-    def from_dict(cls, data: Any) -> Any:
+    def from_dict(cls, data: JsonValue) -> JsonValue:
         """Reconstruct object from dictionary."""
         if isinstance(data, dict) and cls.CLASS_MARKER in data:
             module_path, _, class_name = data[cls.CLASS_MARKER].rpartition(".")
@@ -83,10 +88,10 @@ class HuldraSerializer:
         return data
 
     @classmethod
-    def compute_hash(cls, obj: Any, verbose: bool = False) -> str:
+    def compute_hash(cls, obj: object, verbose: bool = False) -> str:
         """Compute deterministic hash of object."""
 
-        def canonicalize(item: Any) -> Any:
+        def canonicalize(item: object) -> JsonValue:
             if isinstance(item, _HuldraMissing):
                 raise ValueError("Cannot hash Huldra.MISSING")
 
@@ -144,10 +149,10 @@ class HuldraSerializer:
         return hashlib.blake2s(json_str.encode(), digest_size=10).hexdigest()
 
     @classmethod
-    def to_python(cls, obj: Any, multiline: bool = True) -> str:
+    def to_python(cls, obj: object, multiline: bool = True) -> str:
         """Convert object to Python code representation."""
 
-        def to_py_recursive(item: Any, indent: int = 0) -> str:
+        def to_py_recursive(item: object, indent: int = 0) -> str:
             if isinstance(item, _HuldraMissing):
                 raise ValueError("Cannot convert Huldra.MISSING to Python")
 

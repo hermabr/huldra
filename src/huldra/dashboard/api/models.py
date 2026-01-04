@@ -1,6 +1,13 @@
 """Pydantic models for the Dashboard API."""
 
+from typing import Any
+
 from pydantic import BaseModel
+
+
+# Type alias for JSON-serializable data from Pydantic model_dump(mode="json").
+# This is the output of serializing Huldra state/metadata models to JSON format.
+JsonDict = dict[str, Any]
 
 
 class HealthCheck(BaseModel):
@@ -53,8 +60,8 @@ class ExperimentDetail(ExperimentSummary):
     """Detailed experiment information."""
 
     directory: str
-    state: dict[str, object]
-    metadata: dict[str, object] | None = None
+    state: JsonDict
+    metadata: JsonDict | None = None
     attempt: ExperimentAttempt | None = None
 
 

@@ -1,11 +1,8 @@
 from typing import (
-    Any,
     Generator,
     Generic,
     Iterator,
-    List,
     Literal,
-    Optional,
     TypeVar,
     cast,
     overload,
@@ -19,12 +16,12 @@ _H = TypeVar("_H", bound=Huldra, covariant=True)
 class _HuldraListMeta(type):
     """Metaclass that provides collection methods for HuldraList subclasses."""
 
-    def _entries(cls: "type[HuldraList[_H]]") -> List[_H]:
+    def _entries(cls: "type[HuldraList[_H]]") -> list[_H]:
         """Collect all Huldra instances from class attributes."""
-        items: List[_H] = []
+        items: list[_H] = []
         seen: set[str] = set()
 
-        def maybe_add(obj: Any) -> None:
+        def maybe_add(obj: object) -> None:
             if not isinstance(obj, Huldra):
                 raise TypeError(f"{obj!r} is not a Huldra instance")
 
@@ -52,7 +49,7 @@ class _HuldraListMeta(type):
         """Iterate over all Huldra instances."""
         return iter(cls._entries())
 
-    def all(cls: "type[HuldraList[_H]]") -> List[_H]:
+    def all(cls: "type[HuldraList[_H]]") -> list[_H]:
         """Get all Huldra instances as a list."""
         return cls._entries()
 
@@ -66,7 +63,7 @@ class _HuldraListMeta(type):
             if not isinstance(value, dict):
                 yield name, cast(_H, value)
 
-    def items(cls: "type[HuldraList[_H]]") -> List[tuple[str, _H]]:
+    def items(cls: "type[HuldraList[_H]]") -> list[tuple[str, _H]]:
         """Get all (name, instance) pairs as a list."""
         return list(cls.items_iter())
 
@@ -78,7 +75,7 @@ class _HuldraListMeta(type):
     @overload
     def by_name(
         cls: "type[HuldraList[_H]]", name: str, *, strict: Literal[False]
-    ) -> Optional[_H]: ...
+    ) -> _H | None: ...
 
     def by_name(cls: "type[HuldraList[_H]]", name: str, *, strict: bool = True):
         """Get Huldra instance by name."""

@@ -2,11 +2,34 @@ import contextlib
 import threading
 import time
 from pathlib import Path
-from typing import Any, Callable
+from typing import Any, Callable, Protocol
+
 
 from ..config import HULDRA_CONFIG
 from ..storage import StateManager
-from ..storage.state import _HuldraState
+from ..storage.state import _HuldraState, ProbeResult
+
+
+# Protocol for submitit Job-like objects. We use this instead of Any because
+# submitit is an external library and we want to document the interface we expect.
+class SubmititJobProtocol(Protocol):
+    """Protocol for submitit Job objects."""
+
+    job_id: str | None
+
+    def done(self) -> bool: ...
+    def state(self) -> str: ...
+    def result(self, timeout: float | None = None) -> object: ...
+    def wait(self) -> None: ...
+
+
+# Type alias for submitit Executor. The executor is from an external library
+# with a complex generic type, so we use Any here.
+SubmititExecutor = Any
+
+# Type alias for submitit Job. Jobs come from external library and can be
+# various types depending on the executor backend.
+SubmititJob = Any
 
 
 class SubmititAdapter:
@@ -14,14 +37,14 @@ class SubmititAdapter:
 
     JOB_PICKLE = "job.pkl"
 
-    def __init__(self, executor: Any):
+    def __init__(self, executor: SubmititExecutor):
         self.executor = executor
 
-    def submit(self, fn: Callable[[], None]) -> Any:
+    def submit(self, fn: Callable[[], None]) -> SubmititJob:
         """Submit a job to the executor."""
         return self.executor.submit(fn)
 
-    def wait(self, job: Any, timeout: float | None = None) -> None:
+    def wait(self, job: SubmititJob, timeout: float | None = None) -> None:
         """Wait for job completion."""
         with contextlib.suppress(Exception):
             if timeout:
@@ -29,21 +52,21 @@ class SubmititAdapter:
             else:
                 job.wait()
 
-    def get_job_id(self, job: Any) -> str | None:
+    def get_job_id(self, job: SubmititJob) -> str | None:
         """Get job ID if available."""
         job_id = getattr(job, "job_id", None)
         if job_id:
             return str(job_id)
         return None
 
-    def is_done(self, job: Any) -> bool:
+    def is_done(self, job: SubmititJob) -> bool:
         """Check if job is done."""
         done_fn = getattr(job, "done", None)
         if done_fn and callable(done_fn):
             return done_fn()
         return False
 
-    def get_state(self, job: Any) -> str | None:
+    def get_state(self, job: SubmititJob) -> str | None:
         """Get job state from scheduler."""
         try:
             state_fn = getattr(job, "state", None)
@@ -53,7 +76,7 @@ class SubmititAdapter:
             pass
         return None
 
-    def pickle_job(self, job: Any, directory: Path) -> None:
+    def pickle_job(self, job: SubmititJob, directory: Path) -> None:
         """Pickle job handle to file."""
         try:
             import cloudpickle as pickle  # type: ignore
@@ -65,7 +88,7 @@ class SubmititAdapter:
         with job_path.open("wb") as f:
             pickle.dump(job, f)
 
-    def load_job(self, directory: Path) -> Any:
+    def load_job(self, directory: Path) -> SubmititJob | None:
         """Load job handle from pickle file."""
         job_path = StateManager.get_internal_dir(directory) / self.JOB_PICKLE
         if not job_path.is_file():
@@ -83,7 +106,7 @@ class SubmititAdapter:
 
     def watch_job_id(
         self,
-        job: Any,
+        job: SubmititJob,
         directory: Path,
         *,
         attempt_id: str,
@@ -143,7 +166,7 @@ class SubmititAdapter:
 
         return None
 
-    def probe(self, directory: Path, state: _HuldraState) -> dict[str, Any]:
+    def probe(self, directory: Path, state: _HuldraState) -> ProbeResult:
         """
         Best-effort scheduler reconciliation.
 

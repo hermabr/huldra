@@ -6,9 +6,48 @@ import socket
 import time
 import uuid
 from pathlib import Path
-from typing import Annotated, Any, Callable, Literal, Optional
+from typing import Annotated, Any, Callable, Literal, TypedDict
 
 from pydantic import BaseModel, ConfigDict, Field, ValidationError, model_validator
+
+
+# Type alias for scheduler-specific metadata. Different schedulers (SLURM, LSF, PBS, local)
+# return different fields, so this must remain dynamic.
+SchedulerMetadata = dict[str, Any]
+
+# Type alias for probe results from submitit adapter
+ProbeResult = dict[str, Any]
+
+
+class _LockInfoDict(TypedDict, total=False):
+    """TypedDict for lock file information."""
+
+    pid: int
+    host: str
+    created_at: str
+    lock_id: str
+
+
+class _OwnerDict(TypedDict, total=False):
+    """TypedDict for owner information passed to state manager functions."""
+
+    pid: int | None
+    host: str | None
+    hostname: str | None
+    user: str | None
+    command: str | None
+    timestamp: str | None
+    python_version: str | None
+    executable: str | None
+    platform: str | None
+
+
+class _ErrorDict(TypedDict, total=False):
+    """TypedDict for error information passed to state manager functions."""
+
+    type: str
+    message: str
+    traceback: str | None
 
 
 class _StateResultBase(BaseModel):
@@ -43,7 +82,7 @@ _StateResult = Annotated[
 ]
 
 
-def _coerce_result(current: _StateResult, **updates: Any) -> _StateResult:
+def _coerce_result(current: _StateResult, **updates: str) -> _StateResult:
     data = current.model_dump(mode="json")
     data.update(updates)
     status = data.get("status")
@@ -78,7 +117,9 @@ class _StateOwner(BaseModel):
 
     @model_validator(mode="before")
     @classmethod
-    def _normalize_host_keys(cls, data: Any) -> Any:
+    def _normalize_host_keys(
+        cls, data: dict[str, str | int | None] | Any
+    ) -> dict[str, str | int | None] | Any:
         if not isinstance(data, dict):
             return data
         host = data.get("host")
@@ -113,7 +154,7 @@ class _StateAttemptBase(BaseModel):
     lease_duration_sec: float
     lease_expires_at: str
     owner: _StateOwner
-    scheduler: dict[str, Any] = Field(default_factory=dict)
+    scheduler: SchedulerMetadata = Field(default_factory=dict)
 
 
 class _StateAttemptQueued(_StateAttemptBase):
@@ -224,7 +265,7 @@ class StateManager:
         return cls._utcnow().isoformat(timespec="seconds")
 
     @classmethod
-    def _parse_time(cls, value: Any) -> Optional[_dt.datetime]:
+    def _parse_time(cls, value: str | None) -> _dt.datetime | None:
         if not isinstance(value, str) or not value:
             return None
         try:
@@ -280,7 +321,7 @@ class StateManager:
             return False
 
     @classmethod
-    def try_lock(cls, lock_path: Path) -> Optional[int]:
+    def try_lock(cls, lock_path: Path) -> int | None:
         try:
             lock_path.parent.mkdir(parents=True, exist_ok=True)
             fd = os.open(lock_path, os.O_CREAT | os.O_EXCL | os.O_RDWR, 0o644)
@@ -296,7 +337,7 @@ class StateManager:
             return None
 
     @classmethod
-    def release_lock(cls, fd: Optional[int], lock_path: Path) -> None:
+    def release_lock(cls, fd: int | None, lock_path: Path) -> None:
         with contextlib.suppress(Exception):
             if fd is not None:
                 os.close(fd)
@@ -304,7 +345,7 @@ class StateManager:
             lock_path.unlink(missing_ok=True)
 
     @classmethod
-    def _read_lock_info(cls, lock_path: Path) -> dict[str, Any] | None:
+    def _read_lock_info(cls, lock_path: Path) -> _LockInfoDict | None:
         try:
             first = lock_path.read_text().strip().splitlines()[0]
             data = json.loads(first)
@@ -352,7 +393,7 @@ class StateManager:
         cls, directory: Path, mutator: Callable[[_HuldraState], None]
     ) -> _HuldraState:
         lock_path = cls.get_lock_path(directory, cls.STATE_LOCK)
-        fd: Optional[int] = None
+        fd: int | None = None
         try:
             fd = cls._acquire_lock_blocking(lock_path)
             state = cls.read_state(directory)
@@ -366,7 +407,7 @@ class StateManager:
             cls.release_lock(fd, lock_path)
 
     @classmethod
-    def append_event(cls, directory: Path, event: dict[str, Any]) -> None:
+    def append_event(cls, directory: Path, event: dict[str, str | int]) -> None:
         path = cls.get_events_path(directory)
         enriched = {
             "ts": cls._iso_now(),
@@ -408,8 +449,8 @@ class StateManager:
         *,
         backend: str,
         lease_duration_sec: float,
-        owner: dict[str, Any],
-        scheduler: dict[str, Any] | None = None,
+        owner: _OwnerDict,
+        scheduler: SchedulerMetadata | None = None,
     ) -> str:
         return cls._start_attempt(
             directory,
@@ -427,8 +468,8 @@ class StateManager:
         *,
         backend: str,
         lease_duration_sec: float,
-        owner: dict[str, Any],
-        scheduler: dict[str, Any] | None = None,
+        owner: _OwnerDict,
+        scheduler: SchedulerMetadata | None = None,
     ) -> str:
         return cls._start_attempt(
             directory,
@@ -446,8 +487,8 @@ class StateManager:
         *,
         backend: str,
         lease_duration_sec: float,
-        owner: dict[str, Any],
-        scheduler: dict[str, Any] | None,
+        owner: _OwnerDict,
+        scheduler: SchedulerMetadata | None,
         attempt_cls: type[_StateAttemptQueued] | type[_StateAttemptRunning],
     ) -> str:
         attempt_id = uuid.uuid4().hex
@@ -472,7 +513,7 @@ class StateManager:
             heartbeat_at = started_at
             lease_duration = float(lease_duration_sec)
             lease_expires_at = expires.isoformat(timespec="seconds")
-            scheduler_state: dict[str, Any] = scheduler or {}
+            scheduler_state: SchedulerMetadata = scheduler or {}
 
             attempt_common = dict(
                 id=attempt_id,
@@ -550,7 +591,7 @@ class StateManager:
 
     @classmethod
     def set_attempt_fields(
-        cls, directory: Path, *, attempt_id: str, fields: dict[str, Any]
+        cls, directory: Path, *, attempt_id: str, fields: SchedulerMetadata
     ) -> bool:
         ok = False
 
@@ -605,7 +646,7 @@ class StateManager:
         directory: Path,
         *,
         attempt_id: str,
-        error: dict[str, Any],
+        error: _ErrorDict,
     ) -> None:
         now = cls._iso_now()
 
@@ -642,7 +683,7 @@ class StateManager:
         directory: Path,
         *,
         attempt_id: str,
-        error: dict[str, Any],
+        error: _ErrorDict,
         reason: str | None = None,
     ) -> None:
         now = cls._iso_now()
@@ -681,7 +722,7 @@ class StateManager:
     @classmethod
     def _local_attempt_alive(
         cls, attempt: _StateAttemptQueued | _StateAttemptRunning
-    ) -> Optional[bool]:
+    ) -> bool | None:
         host = attempt.owner.host
         pid = attempt.owner.pid
         if host != socket.gethostname():
@@ -695,7 +736,7 @@ class StateManager:
         cls,
         directory: Path,
         *,
-        submitit_probe: Optional[Callable[[_HuldraState], dict[str, Any]]] = None,
+        submitit_probe: Callable[[_HuldraState], ProbeResult] | None = None,
     ) -> _HuldraState:
         """
         Reconcile a possibly-stale running/queued attempt.

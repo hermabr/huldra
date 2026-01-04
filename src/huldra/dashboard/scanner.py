@@ -12,6 +12,7 @@ from .api.models import (
     ExperimentDetail,
     ExperimentOwner,
     ExperimentSummary,
+    JsonDict,
     StatusCount,
 )
 
@@ -59,7 +60,7 @@ def _state_to_detail(
     namespace: str,
     hexdigest: str,
     directory: Path,
-    metadata: dict[str, object] | None,
+    metadata: JsonDict | None,
 ) -> ExperimentDetail:
     """Convert a Huldra state to a detailed experiment record."""
     attempt = state.attempt
@@ -118,7 +119,7 @@ def _find_experiment_dirs(root: Path) -> list[Path]:
     return experiments
 
 
-def _read_metadata(directory: Path) -> dict[str, object] | None:
+def _read_metadata(directory: Path) -> JsonDict | None:
     """Read metadata.json from an experiment directory."""
     metadata_path = directory / ".huldra" / "metadata.json"
     if not metadata_path.is_file():

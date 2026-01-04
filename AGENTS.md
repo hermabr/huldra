@@ -4,7 +4,9 @@
 
 **DO NOT USE** the following patterns in this codebase:
 - `typing.Optional` - Use `X | None` instead
-- `typing.Any` or `object` for dynamic data - Use typed classes (Pydantic models, dataclasses, or TypedDict) instead. For truly polymorphic code, use protocols or generics.
+- `typing.Any` - Only acceptable when the type is truly unknowable at compile time (e.g., deserializing arbitrary JSON, interacting with untyped third-party libraries). Always prefer protocols, generics, or concrete types.
+- `object` as a type annotation - Use specific types, protocols, or generics instead
+- `dict` without specific value types - Use Pydantic models, dataclasses, or TypedDict instead of `dict[str, Any]` or `dict[str, object]`. Simple dicts like `dict[str, str]` or `dict[str, int]` should also be avoided if it is possible to know exactly what the keys and structure of the data is.
 - `try/except` for error recovery - Prefer happy path and let errors crash; only use try/except for cleanup or resource management
 
 **ALWAYS** use `make` commands rather than running tools directly:
@@ -97,12 +99,24 @@ from ..config import HULDRA_CONFIG
 - Use generics where reasonable: `class Huldra[T](ABC):`
 
 ```python
-# Good
+# Good - specific types
 def process(data: dict[str, str]) -> list[int] | None:
+    ...
+
+# Good - use Pydantic models or dataclasses for structured data
+class UserConfig(BaseModel):
+    name: str
+    settings: dict[str, str]
+
+def load_config(path: Path) -> UserConfig:
     ...
 
 # Bad - DO NOT USE
 def process(data: Dict[str, Any]) -> Optional[List[int]]:
+    ...
+
+# Bad - DO NOT USE untyped dicts
+def load_config(path: Path) -> dict[str, Any]:  # NO - use a model
     ...
 ```
 

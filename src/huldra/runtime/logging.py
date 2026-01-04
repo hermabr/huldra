@@ -5,12 +5,25 @@ import logging
 import os
 import threading
 from pathlib import Path
-from typing import Any, Generator
+from typing import Generator, Protocol
+
+from rich.text import Text
 
 from ..config import HULDRA_CONFIG
 
-_HULDRA_HOLDER_STACK: contextvars.ContextVar[tuple[Any, ...]] = contextvars.ContextVar(
-    "huldra_holder_stack", default=()
+
+class _HolderProtocol(Protocol):
+    """Protocol for objects that can be used as logging context holders."""
+
+    @property
+    def huldra_dir(self) -> Path: ...
+
+
+# A holder is either a Path directly or an object with a huldra_dir attribute
+HolderType = Path | _HolderProtocol
+
+_HULDRA_HOLDER_STACK: contextvars.ContextVar[tuple[HolderType, ...]] = (
+    contextvars.ContextVar("huldra_holder_stack", default=())
 )
 _HULDRA_LOG_LOCK = threading.Lock()
 _HULDRA_CONSOLE_LOCK = threading.Lock()
@@ -38,7 +51,7 @@ def _strip_load_or_create_decision_suffix(message: str) -> str:
     return message
 
 
-def _holder_to_log_dir(holder: Any) -> Path:
+def _holder_to_log_dir(holder: HolderType) -> Path:
     if isinstance(holder, Path):
         base_dir = holder
     else:
@@ -52,7 +65,7 @@ def _holder_to_log_dir(holder: Any) -> Path:
 
 
 @contextlib.contextmanager
-def enter_holder(holder: Any) -> Generator[None, None, None]:
+def enter_holder(holder: HolderType) -> Generator[None, None, None]:
     """
     Push a holder object onto the logging stack for this context.
 
@@ -68,7 +81,7 @@ def enter_holder(holder: Any) -> Generator[None, None, None]:
         _HULDRA_HOLDER_STACK.reset(token)
 
 
-def current_holder() -> Any | None:
+def current_holder() -> HolderType | None:
     """Return the current holder object for logging, if any."""
     stack = _HULDRA_HOLDER_STACK.get()
     return stack[-1] if stack else None
@@ -165,9 +178,7 @@ class _HuldraRichConsoleHandler(logging.Handler):
         return f"[{filename}:{record.lineno}]"
 
     @staticmethod
-    def _format_message_text(record: logging.LogRecord) -> Any:
-        from rich.text import Text  # type: ignore
-
+    def _format_message_text(record: logging.LogRecord) -> Text:
         message = _strip_load_or_create_decision_suffix(record.getMessage())
         action_color = getattr(record, "huldra_action_color", None)
         if isinstance(action_color, str) and message.startswith(_LOAD_OR_CREATE_PREFIX):

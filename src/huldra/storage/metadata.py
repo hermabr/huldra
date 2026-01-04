@@ -11,6 +11,7 @@ from pathlib import Path
 from pydantic import BaseModel, ConfigDict
 
 from ..serialization import BaseModel as PydanticBaseModel, HuldraSerializer
+from ..serialization.serializer import JsonValue
 
 
 class GitInfo(BaseModel):
@@ -47,7 +48,7 @@ class HuldraMetadata(BaseModel):
 
     # Huldra-specific fields
     huldra_python_def: str
-    huldra_obj: dict[str, object]
+    huldra_obj: JsonValue  # Serialized Huldra object from HuldraSerializer.to_dict()
     huldra_hash: str
     huldra_path: str
 
