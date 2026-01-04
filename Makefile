@@ -87,6 +87,6 @@ dashboard-serve: dashboard-build
 # All tests (project + dashboard)
 # ============================================================================
 
-test-all: test dashboard-test-all
+test-all: lint test dashboard-test-all
 
 

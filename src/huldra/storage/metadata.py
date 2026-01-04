@@ -7,11 +7,16 @@ import socket
 import subprocess
 import sys
 from pathlib import Path
+from typing import TYPE_CHECKING
 
 from pydantic import BaseModel, ConfigDict
 
-from ..serialization import BaseModel as PydanticBaseModel, HuldraSerializer
+from ..serialization import BaseModel as PydanticBaseModel
+from ..serialization import HuldraSerializer
 from ..serialization.serializer import JsonValue
+
+if TYPE_CHECKING:
+    from ..core.huldra import Huldra
 
 
 class GitInfo(BaseModel):
@@ -167,7 +172,7 @@ class MetadataManager:
 
     @classmethod
     def create_metadata(
-        cls, huldra_obj: object, directory: Path, ignore_diff: bool = False
+        cls, huldra_obj: "Huldra", directory: Path, ignore_diff: bool = False
     ) -> HuldraMetadata:
         """Create complete metadata for a Huldra object."""
         git_info = cls.collect_git_info(ignore_diff)
