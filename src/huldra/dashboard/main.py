@@ -75,8 +75,14 @@ def create_app(*, serve_frontend: bool = False) -> FastAPI:
 # Default app instance (API only)
 app = create_app()
 
-# App instance with frontend serving
-app_with_frontend = create_app(serve_frontend=True)
+# Lazy-initialized app with frontend (set by serve command)
+_app_with_frontend: FastAPI | None = None
+
+
+def get_app_with_frontend() -> FastAPI:
+    """Get app instance with frontend serving (lazy initialization)."""
+    return create_app(serve_frontend=True)
+
 
 # Create Typer app for CLI
 cli_app = typer.Typer(
@@ -93,8 +99,11 @@ def serve(
     reload: bool = typer.Option(False, "--reload", "-r", help="Enable auto-reload"),
 ) -> None:
     """Start the dashboard server with React frontend."""
+    # Create the app with frontend at runtime, not import time
+    global _app_with_frontend
+    _app_with_frontend = get_app_with_frontend()
     uvicorn.run(
-        "huldra.dashboard.main:app_with_frontend",
+        "huldra.dashboard.main:_app_with_frontend",
         host=host,
         port=port,
         reload=reload,
@@ -123,4 +132,3 @@ def cli() -> None:
 
 if __name__ == "__main__":
     cli()
-
