@@ -10,17 +10,11 @@ It is built on top of [chz](https://github.com/openai/chz) for declarative confi
 
 ## Install
 
-This repo is managed with `uv`:
-
 ```bash
-uv add huldra
+uv add "huldra[dashboard] @ https://github.com/hermabr/huldra/releases/download/v0.1.4/huldra-0.1.4-py3-none-any.whl"
 ```
 
-Or install as a package (once published / in your own environment):
-
-```bash
-pip install huldra
-```
+You can also use `pip install` instead of `uv add`.
 
 ## Quickstart
 
