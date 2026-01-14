@@ -23,5 +23,10 @@ jobs:
           uv sync --all-extras
           cd dashboard-frontend && bun install
 
+      - name: Generate frontend artifacts
+        run: |
+          make frontend-generate
+          cd dashboard-frontend && bunx @tanstack/router-cli generate
+
       - name: Run tests
         run: make test-all
