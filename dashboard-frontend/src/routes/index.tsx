@@ -33,7 +33,7 @@ function HomePage() {
       <div className="mb-8">
         <h1 className="text-3xl font-bold mb-2">Dashboard</h1>
         <p className="text-muted-foreground">
-          Monitor your Huldra experiments in real-time
+          Monitor your Gren experiments in real-time
         </p>
       </div>
 
@@ -141,13 +141,13 @@ function HomePage() {
             </TableHeader>
             <TableBody>
               {recentExperiments?.experiments.map((exp) => (
-                <TableRow key={`${exp.namespace}-${exp.huldra_hash}`}>
+                <TableRow key={`${exp.namespace}-${exp.gren_hash}`}>
                   <TableCell className="pl-6">
                     <Link
-                      to="/experiments/$namespace/$huldra_hash"
+                      to="/experiments/$namespace/$gren_hash"
                       params={{
                         namespace: exp.namespace,
-                        huldra_hash: exp.huldra_hash,
+                        gren_hash: exp.gren_hash,
                       }}
                       className="font-medium hover:text-primary"
                     >

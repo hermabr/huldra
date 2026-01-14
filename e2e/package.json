@@ -1,5 +1,5 @@
 {
-  "name": "huldra-dashboard-e2e",
+  "name": "gren-dashboard-e2e",
   "private": true,
   "scripts": {
     "test": "playwright test",

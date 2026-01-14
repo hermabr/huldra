@@ -6,7 +6,7 @@ import { expect, test, describe } from "bun:test";
 import {
   healthCheckApiHealthGetResponse,
   listExperimentsApiExperimentsGetResponse,
-  getExperimentApiExperimentsNamespaceHuldraHashGetResponse,
+  getExperimentApiExperimentsNamespaceGrenHashGetResponse,
   dashboardStatsApiStatsGetResponse,
 } from "./api/zod/schemas";
 
@@ -18,7 +18,7 @@ const mockData = {
   },
   experimentSummary: {
     namespace: "my_project.pipelines.TrainModel",
-    huldra_hash: "abc123def456",
+    gren_hash: "abc123def456",
     class_name: "TrainModel",
     result_status: "success",
     attempt_status: "success",
@@ -30,7 +30,7 @@ const mockData = {
     experiments: [
       {
         namespace: "my_project.pipelines.TrainModel",
-        huldra_hash: "abc123def456",
+        gren_hash: "abc123def456",
         class_name: "TrainModel",
         result_status: "success",
         attempt_status: "success",
@@ -40,7 +40,7 @@ const mockData = {
       },
       {
         namespace: "my_project.pipelines.EvalModel",
-        huldra_hash: "xyz789ghi012",
+        gren_hash: "xyz789ghi012",
         class_name: "EvalModel",
         result_status: "running",
         attempt_status: "running",
@@ -53,7 +53,7 @@ const mockData = {
   },
   experimentDetail: {
     namespace: "my_project.pipelines.TrainModel",
-    huldra_hash: "abc123def456",
+    gren_hash: "abc123def456",
     class_name: "TrainModel",
     result_status: "success",
     attempt_status: "success",
@@ -71,7 +71,7 @@ const mockData = {
       updated_at: "2025-01-01T12:00:00+00:00",
     },
     metadata: {
-      huldra_python_def: "TrainModel(lr=0.001)",
+      gren_python_def: "TrainModel(lr=0.001)",
       git_commit: "abc123",
       git_branch: "main",
       hostname: "test-host",
@@ -160,7 +160,7 @@ describe("Experiment List Schema", () => {
     const invalidList = {
       experiments: [
         {
-          huldra_hash: "abc123",
+          gren_hash: "abc123",
           class_name: "Test",
           result_status: "success",
         },
@@ -175,7 +175,7 @@ describe("Experiment List Schema", () => {
 
 describe("Experiment Detail Schema", () => {
   test("valid experiment detail passes schema", () => {
-    const result = getExperimentApiExperimentsNamespaceHuldraHashGetResponse.safeParse(
+    const result = getExperimentApiExperimentsNamespaceGrenHashGetResponse.safeParse(
       mockData.experimentDetail
     );
     expect(result.success).toBe(true);
@@ -186,7 +186,7 @@ describe("Experiment Detail Schema", () => {
       ...mockData.experimentDetail,
       metadata: null,
     };
-    const result = getExperimentApiExperimentsNamespaceHuldraHashGetResponse.safeParse(
+    const result = getExperimentApiExperimentsNamespaceGrenHashGetResponse.safeParse(
       detailWithNullMetadata
     );
     expect(result.success).toBe(true);
@@ -197,7 +197,7 @@ describe("Experiment Detail Schema", () => {
       ...mockData.experimentDetail,
       attempt: null,
     };
-    const result = getExperimentApiExperimentsNamespaceHuldraHashGetResponse.safeParse(
+    const result = getExperimentApiExperimentsNamespaceGrenHashGetResponse.safeParse(
       detailWithNullAttempt
     );
     expect(result.success).toBe(true);
@@ -205,7 +205,7 @@ describe("Experiment Detail Schema", () => {
 
   test("experiment detail missing directory fails schema", () => {
     const { directory: _, ...invalidDetail } = mockData.experimentDetail;
-    const result = getExperimentApiExperimentsNamespaceHuldraHashGetResponse.safeParse(
+    const result = getExperimentApiExperimentsNamespaceGrenHashGetResponse.safeParse(
       invalidDetail
     );
     expect(result.success).toBe(false);

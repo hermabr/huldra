@@ -1,14 +1,14 @@
 #!/usr/bin/env python3
 """Generate realistic test data for e2e tests.
 
-This script creates actual Huldra experiments with dependencies using
-the Huldra framework. It creates a realistic set of experiments with
+This script creates actual Gren experiments with dependencies using
+the Gren framework. It creates a realistic set of experiments with
 various states (success, failed, running) and dependency chains.
 
 Usage:
     python generate_data.py [--clean]
 
-The --clean flag will remove existing data-huldra directory before generating.
+The --clean flag will remove existing data-gren directory before generating.
 """
 
 from __future__ import annotations
@@ -19,30 +19,30 @@ import shutil
 import sys
 from pathlib import Path
 
-# Add src and examples to path so we can import huldra and the pipelines
+# Add src and examples to path so we can import gren and the pipelines
 sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
 sys.path.insert(0, str(Path(__file__).parent.parent / "examples"))
 
-from huldra.config import HULDRA_CONFIG
-from huldra.serialization import HuldraSerializer
-from huldra.storage import MetadataManager, StateManager
+from gren.config import GREN_CONFIG
+from gren.serialization import GrenSerializer
+from gren.storage import MetadataManager, StateManager
 
 # Import from the examples module which has proper module paths
 from my_project.pipelines import PrepareDataset, TrainModel, TrainTextModel  # type: ignore[import-not-found]
 
 
 def create_mock_experiment(
-    huldra_obj: object,
+    gren_obj: object,
     result_status: str = "success",
     attempt_status: str | None = None,
 ) -> Path:
     """Create a mock experiment with specified state (without actually running _create)."""
-    directory = huldra_obj.huldra_dir  # type: ignore[attr-defined]
+    directory = gren_obj.gren_dir  # type: ignore[attr-defined]
     directory.mkdir(parents=True, exist_ok=True)
 
     # Create metadata using the actual metadata system
     metadata = MetadataManager.create_metadata(
-        huldra_obj,  # type: ignore[arg-type]
+        gren_obj,  # type: ignore[arg-type]
         directory,
         ignore_diff=True,
     )
@@ -62,7 +62,7 @@ def create_mock_experiment(
     attempt: dict[str, str | int | float | dict[str, str | int] | None] | None = None
     if attempt_status:
         attempt = {
-            "id": f"attempt-{HuldraSerializer.compute_hash(huldra_obj)[:8]}",
+            "id": f"attempt-{GrenSerializer.compute_hash(gren_obj)[:8]}",
             "number": 1,
             "backend": "local",
             "status": attempt_status,
@@ -115,9 +115,9 @@ def generate_test_data(data_root: Path) -> None:
     """Generate test data for e2e tests."""
     print(f"Generating test data in {data_root}")
 
-    # Configure Huldra to use our data root
-    HULDRA_CONFIG.base_root = data_root
-    HULDRA_CONFIG.ignore_git_diff = True
+    # Configure Gren to use our data root
+    GREN_CONFIG.base_root = data_root
+    GREN_CONFIG.ignore_git_diff = True
 
     # Create experiments with various states
 
@@ -201,7 +201,7 @@ def main() -> None:
     parser.add_argument(
         "--data-dir",
         type=Path,
-        default=Path(__file__).parent.parent / "data-huldra",
+        default=Path(__file__).parent.parent / "data-gren",
         help="Directory to store generated data",
     )
     args = parser.parse_args()

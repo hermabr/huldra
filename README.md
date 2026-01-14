@@ -1,54 +1,54 @@
-# huldra
+# gren
 
 > **Note:** This is an early prototype; expect breaking changes.
 
-A Python library for building cacheable, nested pipelines. Define computations as config objects; huldra turns configs into stable on-disk artifact directories, records metadata/state, and reuses results across runs.
+A Python library for building cacheable, nested pipelines. Define computations as config objects; gren turns configs into stable on-disk artifact directories, records metadata/state, and reuses results across runs.
 
 Built on [chz](https://github.com/openai/chz) for declarative configs.
 
 ## Installation
 
 ```bash
-uv add "huldra[dashboard] @ https://github.com/hermabr/huldra/releases/download/v0.1.4/huldra-0.1.4-py3-none-any.whl"
+uv add "gren[dashboard] @ https://github.com/hermabr/gren/releases/download/v0.1.4/gren-0.1.4-py3-none-any.whl"
 ```
 
 Or with pip:
 
 ```bash
-pip install "huldra[dashboard] @ https://github.com/hermabr/huldra/releases/download/v0.1.4/huldra-0.1.4-py3-none-any.whl"
+pip install "gren[dashboard] @ https://github.com/hermabr/gren/releases/download/v0.1.4/gren-0.1.4-py3-none-any.whl"
 ```
 
 The `[dashboard]` extra includes the web dashboard. Omit it for the core library only.
 
 ## Quickstart
 
-1. Subclass `huldra.Huldra[T]`
-2. Implement `_create(self) -> T` (compute and write to `self.huldra_dir`)
-3. Implement `_load(self) -> T` (load from `self.huldra_dir`)
+1. Subclass `gren.Gren[T]`
+2. Implement `_create(self) -> T` (compute and write to `self.gren_dir`)
+3. Implement `_load(self) -> T` (load from `self.gren_dir`)
 4. Call `load_or_create()`
 
 ```python
 # my_project/pipelines.py
 import json
 from pathlib import Path
-import huldra
+import gren
 
-class TrainModel(huldra.Huldra[Path]):
-    lr: float = huldra.chz.field(default=1e-3)
-    steps: int = huldra.chz.field(default=1000)
+class TrainModel(gren.Gren[Path]):
+    lr: float = gren.chz.field(default=1e-3)
+    steps: int = gren.chz.field(default=1000)
 
     def _create(self) -> Path:
         # Write outputs into the artifact directory
-        (self.huldra_dir / "metrics.json").write_text(
+        (self.gren_dir / "metrics.json").write_text(
             json.dumps({"lr": self.lr, "steps": self.steps})
         )
-        ckpt = self.huldra_dir / "checkpoint.bin"
+        ckpt = self.gren_dir / "checkpoint.bin"
         ckpt.write_bytes(b"...")
         return ckpt
 
     def _load(self) -> Path:
         # Load outputs back from disk
-        return self.huldra_dir / "checkpoint.bin"
+        return self.gren_dir / "checkpoint.bin"
 ```
 
 ```python
@@ -62,13 +62,13 @@ artifact = TrainModel(lr=3e-4, steps=5000).load_or_create()
 artifact = TrainModel(lr=3e-4, steps=5000).load_or_create()
 ```
 
-> **Tip:** Define Huldra classes in importable modules (not `__main__`); the artifact namespace is derived from the class's module + qualified name.
+> **Tip:** Define Gren classes in importable modules (not `__main__`); the artifact namespace is derived from the class's module + qualified name.
 
 ## Core Concepts
 
 ### How Caching Works
 
-Each `Huldra` instance maps deterministically to a directory based on its config:
+Each `Gren` instance maps deterministically to a directory based on its config:
 
 ```
 <root>/<namespace>/<hash>/
@@ -84,45 +84,45 @@ When you call `load_or_create()`:
 
 ### Nested Pipelines (Dependencies)
 
-Huldra objects compose via nested configs. Each dependency gets its own artifact folder:
+Gren objects compose via nested configs. Each dependency gets its own artifact folder:
 
 ```python
-import huldra
+import gren
 
-class Dataset(huldra.Huldra[str]):
-    name: str = huldra.chz.field(default="toy")
+class Dataset(gren.Gren[str]):
+    name: str = gren.chz.field(default="toy")
 
     def _create(self) -> str:
-        (self.huldra_dir / "data.txt").write_text("hello\nworld\n")
+        (self.gren_dir / "data.txt").write_text("hello\nworld\n")
         return "ready"
 
     def _load(self) -> str:
-        return (self.huldra_dir / "data.txt").read_text()
+        return (self.gren_dir / "data.txt").read_text()
 
 
-class TrainTextModel(huldra.Huldra[str]):
-    dataset: Dataset = huldra.chz.field(default_factory=Dataset)
+class TrainTextModel(gren.Gren[str]):
+    dataset: Dataset = gren.chz.field(default_factory=Dataset)
 
     def _create(self) -> str:
         data = self.dataset.load_or_create()  # Triggers Dataset cache
-        (self.huldra_dir / "model.txt").write_text(f"trained on:\n{data}")
+        (self.gren_dir / "model.txt").write_text(f"trained on:\n{data}")
         return "trained"
 
     def _load(self) -> str:
-        return (self.huldra_dir / "model.txt").read_text()
+        return (self.gren_dir / "model.txt").read_text()
 ```
 
 ### Storage Structure
 
 ```
-$HULDRA_PATH/
+$GREN_PATH/
 ├── data/                         # Default storage (version_controlled=False)
 │   └── <module>/<Class>/
 │       └── <hash>/
-│           ├── .huldra/
+│           ├── .gren/
 │           │   ├── metadata.json # Config, git info, environment
 │           │   ├── state.json    # Status and timestamps
-│           │   ├── huldra.log    # Captured logs
+│           │   ├── gren.log    # Captured logs
 │           │   └── SUCCESS.json  # Marker file
 │           └── <your outputs>    # Files from _create()
 ├── git/                          # For version_controlled=True
@@ -132,14 +132,14 @@ $HULDRA_PATH/
 
 ## Features
 
-### HuldraList: Managing Experiment Collections
+### GrenList: Managing Experiment Collections
 
-`HuldraList` provides a collection interface for organizing related experiments:
+`GrenList` provides a collection interface for organizing related experiments:
 
 ```python
-import huldra
+import gren
 
-class MyExperiments(huldra.HuldraList[TrainModel]):
+class MyExperiments(gren.GrenList[TrainModel]):
     baseline = TrainModel(lr=1e-3, steps=1000)
     fast_lr = TrainModel(lr=1e-2, steps=1000)
     long_run = TrainModel(lr=1e-3, steps=10000)
@@ -170,12 +170,12 @@ for name, exp in MyExperiments.items():
 Override `_validate()` to add custom cache invalidation logic:
 
 ```python
-class ModelWithValidation(huldra.Huldra[Path]):
+class ModelWithValidation(gren.Gren[Path]):
     checkpoint_name: str = "model.pt"
 
     def _validate(self) -> bool:
         # Return False to force re-computation
-        ckpt = self.huldra_dir / self.checkpoint_name
+        ckpt = self.gren_dir / self.checkpoint_name
         return ckpt.exists() and ckpt.stat().st_size > 0
 
     def _create(self) -> Path:
@@ -196,13 +196,13 @@ if obj.exists():
 
 # Get metadata without triggering computation
 metadata = obj.get_metadata()
-print(f"Hash: {obj._huldra_hash}")
-print(f"Dir: {obj.huldra_dir}")
+print(f"Hash: {obj._gren_hash}")
+print(f"Dir: {obj.gren_dir}")
 ```
 
 ### Serialization
 
-Huldra objects can be serialized to/from dictionaries:
+Gren objects can be serialized to/from dictionaries:
 
 ```python
 obj = TrainModel(lr=3e-4, steps=5000)
@@ -223,11 +223,11 @@ print(obj.to_python())
 For large files that shouldn't be versioned per-config, use the shared raw directory:
 
 ```python
-class LargeDataProcessor(huldra.Huldra[Path]):
+class LargeDataProcessor(gren.Gren[Path]):
     def _create(self) -> Path:
         # self.raw_dir is shared across all configs
         # Create a subfolder for isolation if needed
-        my_raw = self.raw_dir / self._huldra_hash
+        my_raw = self.raw_dir / self._gren_hash
         my_raw.mkdir(exist_ok=True)
         
         large_file = my_raw / "huge_dataset.bin"
@@ -240,37 +240,37 @@ class LargeDataProcessor(huldra.Huldra[Path]):
 For artifacts that should be stored separately (e.g., checked into git):
 
 ```python
-class VersionedConfig(huldra.Huldra[dict], version_controlled=True):
-    # Stored under $HULDRA_PATH/git/ instead of $HULDRA_PATH/data/
+class VersionedConfig(gren.Gren[dict], version_controlled=True):
+    # Stored under $GREN_PATH/git/ instead of $GREN_PATH/data/
     ...
 ```
 
 ## Logging
 
-Huldra installs stdlib `logging` handlers that capture logs to per-artifact files.
+Gren installs stdlib `logging` handlers that capture logs to per-artifact files.
 
 ```python
 import logging
-import huldra
+import gren
 
 log = logging.getLogger(__name__)
 
-class MyPipeline(huldra.Huldra[str]):
+class MyPipeline(gren.Gren[str]):
     def _create(self) -> str:
-        log.info("Starting computation...")  # Goes to huldra.log
+        log.info("Starting computation...")  # Goes to gren.log
         log.debug("Debug details...")
         return "done"
 ```
 
 ### Console Output
 
-By default, huldra logs to console using Rich in a compact format:
+By default, gren logs to console using Rich in a compact format:
 
 ```
 HHMMSS file.py:line message
 ```
 
-Huldra emits status messages like:
+Gren emits status messages like:
 ```
 load_or_create TrainModel abc123def (missing->create)
 load_or_create TrainModel abc123def (success->load)
@@ -279,29 +279,29 @@ load_or_create TrainModel abc123def (success->load)
 ### Explicit Setup
 
 ```python
-import huldra
+import gren
 
 # Eagerly install logging handlers (optional, happens automatically)
-huldra.configure_logging()
+gren.configure_logging()
 
-# Get the huldra logger
-logger = huldra.get_logger()
+# Get the gren logger
+logger = gren.get_logger()
 ```
 
 ## Error Handling
 
 ```python
-from huldra import HuldraComputeError, HuldraWaitTimeout, HuldraLockNotAcquired
+from gren import GrenComputeError, GrenWaitTimeout, GrenLockNotAcquired
 
 try:
     result = obj.load_or_create()
-except HuldraComputeError as e:
+except GrenComputeError as e:
     print(f"Computation failed: {e}")
     print(f"State file: {e.state_path}")
     print(f"Original error: {e.original_error}")
-except HuldraWaitTimeout:
+except GrenWaitTimeout:
     print("Timed out waiting for another process")
-except HuldraLockNotAcquired:
+except GrenLockNotAcquired:
     print("Could not acquire lock")
 ```
 
@@ -311,7 +311,7 @@ Run computations on SLURM clusters via [submitit](https://github.com/facebookinc
 
 ```python
 import submitit
-import huldra
+import gren
 
 executor = submitit.AutoExecutor(folder="submitit_logs")
 executor.update_parameters(
@@ -321,13 +321,13 @@ executor.update_parameters(
 )
 
 # Submit job and return immediately
-job = my_huldra_obj.load_or_create(executor=executor)
+job = my_gren_obj.load_or_create(executor=executor)
 
-# Job ID is tracked in .huldra/state.json
+# Job ID is tracked in .gren/state.json
 print(job.job_id)
 ```
 
-Huldra handles preemption, requeuing, and state tracking automatically.
+Gren handles preemption, requeuing, and state tracking automatically.
 
 ## Dashboard
 
@@ -337,18 +337,18 @@ The web dashboard provides experiment browsing, filtering, and dependency visual
 
 ```bash
 # Full dashboard with React frontend
-huldra-dashboard serve
+gren-dashboard serve
 
 # Or with options
-huldra-dashboard serve --host 0.0.0.0 --port 8000 --reload
+gren-dashboard serve --host 0.0.0.0 --port 8000 --reload
 
 # API server only (no frontend)
-huldra-dashboard api
+gren-dashboard api
 ```
 
 Or via Python:
 ```bash
-python -m huldra.dashboard serve
+python -m gren.dashboard serve
 ```
 
 ### API Endpoints
@@ -379,39 +379,39 @@ The `/api/experiments` endpoint supports:
 
 | Variable | Default | Description |
 |----------|---------|-------------|
-| `HULDRA_PATH` | `./data-huldra/` | Base storage directory |
-| `HULDRA_LOG_LEVEL` | `INFO` | Console verbosity (`DEBUG`, `INFO`, `WARNING`, `ERROR`) |
-| `HULDRA_IGNORE_DIFF` | `false` | Skip embedding git diff in metadata |
-| `HULDRA_POLL_INTERVAL_SECS` | `10` | Polling interval for queued/running jobs |
-| `HULDRA_WAIT_LOG_EVERY_SECS` | `10` | Interval between "waiting" log messages |
-| `HULDRA_STALE_AFTER_SECS` | `1800` | Consider running jobs stale after this duration |
-| `HULDRA_LEASE_SECS` | `120` | Compute lock lease duration |
-| `HULDRA_HEARTBEAT_SECS` | `lease/3` | Heartbeat interval for running jobs |
-| `HULDRA_PREEMPT_MAX` | `5` | Maximum submitit requeues on preemption |
-| `HULDRA_CANCELLED_IS_PREEMPTED` | `false` | Treat SLURM CANCELLED as preempted |
-| `HULDRA_RICH_UNCAUGHT_TRACEBACKS` | `true` | Use Rich for exception formatting |
+| `GREN_PATH` | `./data-gren/` | Base storage directory |
+| `GREN_LOG_LEVEL` | `INFO` | Console verbosity (`DEBUG`, `INFO`, `WARNING`, `ERROR`) |
+| `GREN_IGNORE_DIFF` | `false` | Skip embedding git diff in metadata |
+| `GREN_POLL_INTERVAL_SECS` | `10` | Polling interval for queued/running jobs |
+| `GREN_WAIT_LOG_EVERY_SECS` | `10` | Interval between "waiting" log messages |
+| `GREN_STALE_AFTER_SECS` | `1800` | Consider running jobs stale after this duration |
+| `GREN_LEASE_SECS` | `120` | Compute lock lease duration |
+| `GREN_HEARTBEAT_SECS` | `lease/3` | Heartbeat interval for running jobs |
+| `GREN_PREEMPT_MAX` | `5` | Maximum submitit requeues on preemption |
+| `GREN_CANCELLED_IS_PREEMPTED` | `false` | Treat SLURM CANCELLED as preempted |
+| `GREN_RICH_UNCAUGHT_TRACEBACKS` | `true` | Use Rich for exception formatting |
 
 Local `.env` files are loaded automatically if `python-dotenv` is installed.
 
 ### Programmatic Configuration
 
 ```python
-import huldra
+import gren
 from pathlib import Path
 
 # Set/get root directory
-huldra.set_huldra_root(Path("/my/storage"))
-root = huldra.get_huldra_root()
+gren.set_gren_root(Path("/my/storage"))
+root = gren.get_gren_root()
 
 # Access config directly
-huldra.HULDRA_CONFIG.ignore_git_diff = True
-huldra.HULDRA_CONFIG.poll_interval = 5.0
+gren.GREN_CONFIG.ignore_git_diff = True
+gren.GREN_CONFIG.poll_interval = 5.0
 ```
 
 ### Class-Level Options
 
 ```python
-class MyPipeline(huldra.Huldra[Path], version_controlled=True):
+class MyPipeline(gren.Gren[Path], version_controlled=True):
     _max_wait_time_sec = 3600.0  # Wait up to 1 hour (default: 600)
     ...
 ```
@@ -422,7 +422,7 @@ Each artifact records:
 
 | Category | Fields |
 |----------|--------|
-| **Config** | `huldra_python_def`, `huldra_obj`, `huldra_hash`, `huldra_path` |
+| **Config** | `gren_python_def`, `gren_obj`, `gren_hash`, `gren_path` |
 | **Git** | `git_commit`, `git_branch`, `git_remote`, `git_patch`, `git_submodules` |
 | **Environment** | `timestamp`, `command`, `python_version`, `executable`, `platform`, `hostname`, `user`, `pid` |
 
@@ -436,25 +436,25 @@ print(metadata.hostname)
 ## Public API
 
 ```python
-from huldra import (
+from gren import (
     # Core
-    Huldra,
-    HuldraList,
-    HULDRA_CONFIG,
+    Gren,
+    GrenList,
+    GREN_CONFIG,
     
     # Configuration
-    get_huldra_root,
-    set_huldra_root,
+    get_gren_root,
+    set_gren_root,
     
     # Errors
-    HuldraError,
-    HuldraComputeError,
-    HuldraLockNotAcquired,
-    HuldraWaitTimeout,
+    GrenError,
+    GrenComputeError,
+    GrenLockNotAcquired,
+    GrenWaitTimeout,
     MISSING,
     
     # Serialization
-    HuldraSerializer,
+    GrenSerializer,
     
     # Storage
     StateManager,

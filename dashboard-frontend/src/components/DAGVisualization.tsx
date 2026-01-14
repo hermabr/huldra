@@ -86,16 +86,16 @@ function ClassNode({ data, selected }: NodeProps<Node<ClassNodeData>>) {
         <div className="space-y-1">
           {node.experiments.slice(0, 3).map((exp: DAGExperiment) => (
             <Link
-              key={exp.huldra_hash}
-              to="/experiments/$namespace/$huldra_hash"
+              key={exp.gren_hash}
+              to="/experiments/$namespace/$gren_hash"
               params={{
                 namespace: exp.namespace,
-                huldra_hash: exp.huldra_hash,
+                gren_hash: exp.gren_hash,
               }}
               className="block text-xs text-muted-foreground hover:text-primary truncate"
-              title={exp.huldra_hash}
+              title={exp.gren_hash}
             >
-              {exp.huldra_hash.slice(0, 8)}...
+              {exp.gren_hash.slice(0, 8)}...
             </Link>
           ))}
           {node.experiments.length > 3 && (
@@ -356,15 +356,15 @@ export function DAGVisualization({ nodes: dagNodes, edges: dagEdges }: DAGVisual
                 <div className="max-h-40 overflow-y-auto space-y-1">
                   {selectedNode.experiments.map((exp) => (
                     <Link
-                      key={exp.huldra_hash}
-                      to="/experiments/$namespace/$huldra_hash"
+                      key={exp.gren_hash}
+                      to="/experiments/$namespace/$gren_hash"
                       params={{
                         namespace: exp.namespace,
-                        huldra_hash: exp.huldra_hash,
+                        gren_hash: exp.gren_hash,
                       }}
                       className="flex items-center justify-between p-2 rounded hover:bg-muted text-sm"
                     >
-                      <code className="text-xs">{exp.huldra_hash.slice(0, 12)}...</code>
+                      <code className="text-xs">{exp.gren_hash.slice(0, 12)}...</code>
                       <Badge
                         variant={
                           exp.result_status === "success"

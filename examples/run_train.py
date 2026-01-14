@@ -4,7 +4,7 @@ from pathlib import Path
 
 from my_project.pipelines import PrepareDataset, TrainModel
 
-import huldra
+import gren
 
 
 def main() -> None:
@@ -12,14 +12,14 @@ def main() -> None:
         examples_root = Path(__file__).resolve().parent
     except Exception:
         examples_root = Path(".").resolve().parent
-    huldra.set_huldra_root(examples_root / ".huldra")
-    # huldra.HULDRA_CONFIG.ignore_git_diff = True
+    gren.set_gren_root(examples_root / ".gren")
+    # gren.GREN_CONFIG.ignore_git_diff = True
 
     obj = TrainModel(lr=3e-4, steps=2_000, dataset=PrepareDataset(name="mydata"))
     artifact = obj.load_or_create()
     print("artifact:", artifact)
-    print("artifact dir:", obj.huldra_dir)
-    print("log:", obj.huldra_dir / ".huldra" / "huldra.log")
+    print("artifact dir:", obj.gren_dir)
+    print("log:", obj.gren_dir / ".gren" / "gren.log")
 
 
 if __name__ == "__main__":

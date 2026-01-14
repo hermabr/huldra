@@ -9,7 +9,7 @@ test.describe("Experiments Page", () => {
       page.getByRole("heading", { name: "Experiments", exact: true })
     ).toBeVisible();
     await expect(
-      page.getByText("Browse and filter all Huldra experiments")
+      page.getByText("Browse and filter all Gren experiments")
     ).toBeVisible();
 
     // Check filter inputs exist

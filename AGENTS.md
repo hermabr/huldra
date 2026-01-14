@@ -24,10 +24,10 @@
 ## Project Structure
 
 ```
-src/huldra/           # Main package (src layout - import as `huldra`)
-  core/               # Huldra and HuldraList classes
+src/gren/           # Main package (src layout - import as `gren`)
+  core/               # Gren and GrenList classes
   storage/            # StateManager, MetadataManager
-  serialization/      # HuldraSerializer (+ pydantic support)
+  serialization/      # GrenSerializer (+ pydantic support)
   runtime/            # Scoped logging, .env loading, tracebacks
   adapters/           # Integrations (SubmititAdapter)
   dashboard/          # FastAPI dashboard (optional)
@@ -61,10 +61,10 @@ This project uses `uv` for dependency management.
 
 ```bash
 # Run a specific test file
-uv run pytest tests/test_huldra_core.py -v
+uv run pytest tests/test_gren_core.py -v
 
 # Run a specific test function
-uv run pytest tests/test_huldra_core.py::test_exists_reflects_success_state -v
+uv run pytest tests/test_gren_core.py::test_exists_reflects_success_state -v
 
 # Run tests matching a pattern
 uv run pytest -k "test_load" -v
@@ -100,7 +100,7 @@ Order imports as: stdlib, third-party, local. Use absolute imports for cross-mod
 import contextlib
 from pathlib import Path
 import chz
-from ..config import HULDRA_CONFIG
+from ..config import GREN_CONFIG
 ```
 
 ### Type Annotations
@@ -108,7 +108,7 @@ from ..config import HULDRA_CONFIG
 - **Required** on all public APIs (functions, methods, class attributes)
 - Use modern syntax: `X | None` not `Optional[X]`
 - Use concrete types, not `Any`
-- Use generics where reasonable: `class Huldra[T](ABC):`
+- Use generics where reasonable: `class Gren[T](ABC):`
 
 ```python
 # Good - specific types
@@ -137,7 +137,7 @@ def load_config(path: Path) -> dict[str, Any]:  # NO - use a model
 - `snake_case` for functions, variables, module names
 - `PascalCase` for classes
 - `UPPER_SNAKE_CASE` for constants
-- Private/internal names prefixed with `_` (e.g., `_HuldraState`, `_iso_now`)
+- Private/internal names prefixed with `_` (e.g., `_GrenState`, `_iso_now`)
 
 ### Error Handling
 
@@ -183,12 +183,12 @@ except Exception:
 
 - All tests in `tests/` directory using pytest
 - Use `tmp_path` fixture for temporary directories
-- Use `huldra_tmp_root` fixture (from `conftest.py`) for isolated Huldra config
+- Use `gren_tmp_root` fixture (from `conftest.py`) for isolated Gren config
 - Keep tests deterministic - no writing to project root
 - Test functions named `test_<description>`
 
 ```python
-def test_exists_reflects_success_state(huldra_tmp_root) -> None:
+def test_exists_reflects_success_state(gren_tmp_root) -> None:
     obj = Dummy()
     assert obj.exists() is False
     obj.load_or_create()
@@ -212,16 +212,16 @@ For dashboard features specifically:
 
 Example test structure for a new filter:
 ```python
-def test_filter_by_new_field(huldra_tmp_root) -> None:
+def test_filter_by_new_field(gren_tmp_root) -> None:
     """Test filtering by the new field."""
     # Setup: create experiments with different field values
     # Test: filter returns only matching experiments
     # Verify: correct count and correct experiments returned
 
-def test_filter_by_new_field_no_match(huldra_tmp_root) -> None:
+def test_filter_by_new_field_no_match(gren_tmp_root) -> None:
     """Test filter returns empty when no experiments match."""
 
-def test_filter_by_new_field_combined(huldra_tmp_root) -> None:
+def test_filter_by_new_field_combined(gren_tmp_root) -> None:
     """Test new filter works in combination with existing filters."""
 ```
 
@@ -229,19 +229,19 @@ def test_filter_by_new_field_combined(huldra_tmp_root) -> None:
 
 **Use module-scoped fixtures for read-only tests.** Creating experiments is slow, so:
 
-1. **Prefer `populated_huldra_root`** (module-scoped) over `temp_huldra_root` (function-scoped)
+1. **Prefer `populated_gren_root`** (module-scoped) over `temp_gren_root` (function-scoped)
 2. **Extend `_create_populated_experiments()`** in `conftest.py` when you need new test data
-3. **Only use `temp_huldra_root`** when tests must mutate state or need isolated data
+3. **Only use `temp_gren_root`** when tests must mutate state or need isolated data
 
 ```python
 # Good - uses shared fixture, fast
-def test_filter_by_backend(client: TestClient, populated_huldra_root: Path) -> None:
+def test_filter_by_backend(client: TestClient, populated_gren_root: Path) -> None:
     response = client.get("/api/experiments?backend=local")
     assert response.json()["total"] == 3  # Uses pre-created data
 
 # Slow - creates experiments per test (avoid unless necessary)
-def test_something(client: TestClient, temp_huldra_root: Path) -> None:
-    create_experiment_from_huldra(...)  # Slow!
+def test_something(client: TestClient, temp_gren_root: Path) -> None:
+    create_experiment_from_gren(...)  # Slow!
 ```
 
 ---
@@ -249,7 +249,7 @@ def test_something(client: TestClient, temp_huldra_root: Path) -> None:
 ## Commit Guidelines
 
 - Short, imperative subjects (often lowercase)
-- Examples: `fix typing`, `add raw data path to huldra config`
+- Examples: `fix typing`, `add raw data path to gren config`
 - Keep commits scoped; separate refactors from behavior changes
 
 ---
@@ -257,5 +257,5 @@ def test_something(client: TestClient, temp_huldra_root: Path) -> None:
 ## Environment & Configuration
 
 - Local config from `.env` (gitignored); don't commit secrets
-- Storage defaults to `./data-huldra/`; override with `HULDRA_PATH`
+- Storage defaults to `./data-gren/`; override with `GREN_PATH`
 - Python version: >=3.12

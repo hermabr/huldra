@@ -2,24 +2,24 @@ import json
 
 import pytest
 
-import huldra
-from huldra.storage.metadata import GitInfo
+import gren
+from gren.storage.metadata import GitInfo
 
 
-class Dummy(huldra.Huldra[int]):
-    value: int = huldra.chz.field(default=1)
+class Dummy(gren.Gren[int]):
+    value: int = gren.chz.field(default=1)
 
     def _create(self) -> int:
-        (self.huldra_dir / "value.json").write_text(json.dumps(self.value))
+        (self.gren_dir / "value.json").write_text(json.dumps(self.value))
         return self.value
 
     def _load(self) -> int:
-        return json.loads((self.huldra_dir / "value.json").read_text())
+        return json.loads((self.gren_dir / "value.json").read_text())
 
 
-def test_metadata_roundtrip_and_get_metadata(huldra_tmp_root, monkeypatch) -> None:
+def test_metadata_roundtrip_and_get_metadata(gren_tmp_root, monkeypatch) -> None:
     monkeypatch.setattr(
-        huldra.MetadataManager,
+        gren.MetadataManager,
         "collect_git_info",
         lambda ignore_diff=False: GitInfo(
             git_commit="<test>",
@@ -36,11 +36,11 @@ def test_metadata_roundtrip_and_get_metadata(huldra_tmp_root, monkeypatch) -> No
 
     assert obj.load_or_create() == 42
     meta = obj.get_metadata()
-    assert meta.huldra_hash == obj._huldra_hash
-    assert meta.huldra_obj["value"] == 42
+    assert meta.gren_hash == obj._gren_hash
+    assert meta.gren_obj["value"] == 42
     assert meta.git_commit == "<test>"
 
 
-def test_metadata_read_raises_when_missing(huldra_tmp_root, tmp_path) -> None:
+def test_metadata_read_raises_when_missing(gren_tmp_root, tmp_path) -> None:
     with pytest.raises(FileNotFoundError):
-        huldra.MetadataManager.read_metadata(tmp_path / "missing")
+        gren.MetadataManager.read_metadata(tmp_path / "missing")

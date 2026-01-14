@@ -1,7 +1,7 @@
 import { defineConfig, devices } from "@playwright/test";
 
 /**
- * Playwright configuration for Huldra Dashboard E2E tests.
+ * Playwright configuration for Gren Dashboard E2E tests.
  * @see https://playwright.dev/docs/test-configuration
  */
 export default defineConfig({
@@ -40,7 +40,7 @@ export default defineConfig({
 
   /* Run the dashboard server before starting the tests */
   webServer: {
-    command: "cd .. && uv run python -m huldra.dashboard serve --port 8000",
+    command: "cd .. && uv run python -m gren.dashboard serve --port 8000",
     url: "http://localhost:8000/api/health",
     reuseExistingServer: !process.env.CI,
     timeout: 30000,

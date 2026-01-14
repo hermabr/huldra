@@ -1,5 +1,5 @@
 [project]
-name = "huldra"
+name = "gren"
 version = "0.1.4"
 description = "Add your description here"
 readme = "README.md"
@@ -24,7 +24,7 @@ dashboard = [
 ]
 
 [project.scripts]
-huldra-dashboard = "huldra.dashboard.main:cli"
+gren-dashboard = "gren.dashboard.main:cli"
 
 [dependency-groups]
 dev = [
@@ -46,10 +46,10 @@ requires = ["hatchling"]
 build-backend = "hatchling.build"
 
 [tool.hatch.build]
-artifacts = ["src/huldra/dashboard/frontend/dist/**/*"]
+artifacts = ["src/gren/dashboard/frontend/dist/**/*"]
 
 [tool.hatch.build.targets.wheel]
-packages = ["src/huldra"]
+packages = ["src/gren"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

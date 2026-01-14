@@ -14,7 +14,7 @@ export default defineConfig({
     },
   },
   build: {
-    outDir: "../src/huldra/dashboard/frontend/dist",
+    outDir: "../src/gren/dashboard/frontend/dist",
     emptyOutDir: true,
   },
 });

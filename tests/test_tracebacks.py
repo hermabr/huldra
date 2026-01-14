@@ -1,4 +1,4 @@
-from huldra.runtime import tracebacks
+from gren.runtime import tracebacks
 
 
 def test_rich_uncaught_tracebacks_enabled_by_default() -> None:

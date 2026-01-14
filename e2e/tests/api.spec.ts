@@ -74,8 +74,8 @@ test.describe("API Endpoints", () => {
 
     // Experiments should be different
     if (data.experiments.length > 0 && data2.experiments.length > 0) {
-      expect(data.experiments[0].huldra_hash).not.toBe(
-        data2.experiments[0].huldra_hash
+      expect(data.experiments[0].gren_hash).not.toBe(
+        data2.experiments[0].gren_hash
       );
     }
   });
@@ -109,17 +109,17 @@ test.describe("API Endpoints", () => {
     expect(listData.experiments.length).toBeGreaterThan(0);
 
     const experiment = listData.experiments[0];
-    const { namespace, huldra_hash } = experiment;
+    const { namespace, gren_hash } = experiment;
 
     // Now fetch the detail
     const detailResponse = await request.get(
-      `/api/experiments/${namespace}/${huldra_hash}`
+      `/api/experiments/${namespace}/${gren_hash}`
     );
     expect(detailResponse.ok()).toBeTruthy();
 
     const detail = await detailResponse.json();
     expect(detail.namespace).toBe(namespace);
-    expect(detail.huldra_hash).toBe(huldra_hash);
+    expect(detail.gren_hash).toBe(gren_hash);
     expect(detail.class_name).toBeDefined();
     expect(detail.result_status).toBe("success");
     expect(detail.state).toBeDefined();
@@ -134,7 +134,7 @@ test.describe("API Endpoints", () => {
     expect(response.status()).toBe(404);
   });
 
-  test("experiments have proper metadata from Huldra", async ({ request }) => {
+  test("experiments have proper metadata from Gren", async ({ request }) => {
     const response = await request.get(
       "/api/experiments?result_status=success&limit=1"
     );
@@ -145,15 +145,15 @@ test.describe("API Endpoints", () => {
 
     // Fetch full detail to check metadata
     const detailResponse = await request.get(
-      `/api/experiments/${experiment.namespace}/${experiment.huldra_hash}`
+      `/api/experiments/${experiment.namespace}/${experiment.gren_hash}`
     );
     const detail = await detailResponse.json();
 
-    // Check that metadata has expected fields from real Huldra objects
+    // Check that metadata has expected fields from real Gren objects
     expect(detail.metadata).toBeDefined();
-    expect(detail.metadata.huldra_python_def).toBeDefined();
-    expect(detail.metadata.huldra_obj).toBeDefined();
-    expect(detail.metadata.huldra_hash).toBe(experiment.huldra_hash);
+    expect(detail.metadata.gren_python_def).toBeDefined();
+    expect(detail.metadata.gren_obj).toBeDefined();
+    expect(detail.metadata.gren_hash).toBe(experiment.gren_hash);
     expect(detail.metadata.git_commit).toBeDefined();
     expect(detail.metadata.hostname).toBeDefined();
     expect(detail.metadata.user).toBeDefined();

@@ -2,7 +2,7 @@
  * Global setup for Playwright e2e tests.
  *
  * This script runs before all tests to generate test data using the
- * Python data generation script. It creates realistic Huldra experiments
+ * Python data generation script. It creates realistic Gren experiments
  * with various states and dependencies.
  *
  * For faster iteration, data is only regenerated if:
@@ -18,7 +18,7 @@ import * as path from "path";
 async function globalSetup() {
   const projectRoot = path.resolve(__dirname, "..");
   const e2eDir = __dirname;
-  const dataDir = path.join(projectRoot, "data-huldra");
+  const dataDir = path.join(projectRoot, "data-gren");
 
   // Check if we should regenerate data
   const forceRegenerate = process.env.REGENERATE_DATA === "1" || process.env.CI;
@@ -38,8 +38,8 @@ async function globalSetup() {
       stdio: "inherit",
       env: {
         ...process.env,
-        // Ensure we use the project's data-huldra directory
-        HULDRA_PATH: dataDir,
+        // Ensure we use the project's data-gren directory
+        GREN_PATH: dataDir,
       },
     });
     console.log("✅ Test data generated successfully");

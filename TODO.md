@@ -24,8 +24,8 @@
 
 ## Execution & Compute
 
-- [ ] Dry-run mode (`HULDRA_DRY_RUN`) - Preview what would be computed without running
-- [ ] Force recompute flag (`HULDRA_FORCE_RECOMPUTE`) - Recompute even if artifact exists
+- [ ] Dry-run mode (`GREN_DRY_RUN`) - Preview what would be computed without running
+- [ ] Force recompute flag (`GREN_FORCE_RECOMPUTE`) - Recompute even if artifact exists
 - [ ] Checkpointing - Resume long-running computations from checkpoints
 - [ ] Resource tracking - Track peak memory, CPU time, GPU usage during `_create()`
 
@@ -78,7 +78,7 @@
 - [ ] Live log streaming - Tail logs in real-time
 - [ ] Keyboard shortcuts - Navigation with VIM (j/k, /, etc.)
 - [ ] General UI improvements
-- [ ] Named experiments (either with _name in huldra or rename in the web ui and update the metadata)
+- [ ] Named experiments (either with _name in gren or rename in the web ui and update the metadata)
 - [ ] Tags for experiments. Each experiment can have multiple tags
 - [ ] Nice UI/UX for selecting experiments (maybe using either something from SQL or some sort of code for selecting?)
 
@@ -99,7 +99,7 @@
 
 ## Build & Packaging
 
-- [ ] Explore if I the dashboard feature can be added in a different way, so that type checking works correctly for the main huldra package, so that the normal package cannot use packages only available in the dashboard
+- [ ] Explore if I the dashboard feature can be added in a different way, so that type checking works correctly for the main gren package, so that the normal package cannot use packages only available in the dashboard
 - [ ] Consider moving from hatchling to uv-build
 - [ ] Add CI workflow to run tests on every push/PR
 
