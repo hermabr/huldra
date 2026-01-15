@@ -25,7 +25,7 @@
 ## Execution & Compute
 
 - [ ] Dry-run mode (`GREN_DRY_RUN`) - Preview what would be computed without running
-- [ ] Force recompute flag (`GREN_FORCE_RECOMPUTE`) - Recompute even if artifact exists
+- [x] Force recompute flag (`GREN_FORCE_RECOMPUTE`) - Recompute even if artifact exists
 - [ ] Checkpointing - Resume long-running computations from checkpoints
 - [ ] Resource tracking - Track peak memory, CPU time, GPU usage during `_create()`
 
