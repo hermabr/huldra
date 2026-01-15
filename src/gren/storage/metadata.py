@@ -19,6 +19,18 @@ from ..serialization.serializer import JsonValue
 if TYPE_CHECKING:
     from ..core.gren import Gren
 
+# Module-level cache for metadata (controlled via GREN_CACHE_METADATA)
+_cached_git_info: "GitInfo | None" = None
+_cached_git_info_time: float = 0.0
+
+
+def clear_metadata_cache() -> None:
+    """Clear the cached metadata. Useful for testing or long-running processes."""
+    global _cached_git_info, _cached_git_info_time
+    _cached_git_info = None
+    _cached_git_info_time = 0.0
+
+
 
 class GitInfo(BaseModel):
     """Git repository information."""
@@ -99,6 +111,16 @@ class MetadataManager:
     @classmethod
     def collect_git_info(cls, ignore_diff: bool = False) -> GitInfo:
         """Collect git repository information."""
+        global _cached_git_info, _cached_git_info_time
+        import time
+
+        ttl = GREN_CONFIG.cache_metadata_ttl_sec
+        # Return cached result if caching is enabled and not expired
+        if ttl is not None and _cached_git_info is not None:
+            age = time.time() - _cached_git_info_time
+            if age < ttl:
+                return _cached_git_info
+
         if not GREN_CONFIG.require_git:
             try:
                 head = cls.run_git_command(["rev-parse", "HEAD"])
@@ -163,13 +185,20 @@ class MetadataManager:
             if len(parts) >= 2:
                 submodules[parts[1]] = parts[0]
 
-        return GitInfo(
+        result = GitInfo(
             git_commit=head,
             git_branch=branch,
             git_remote=remote,
             git_patch=patch,
             git_submodules=submodules,
         )
+
+        # Cache result if caching is enabled
+        if ttl is not None:
+            _cached_git_info = result
+            _cached_git_info_time = time.time()
+
+        return result
 
     @staticmethod
     def collect_environment_info() -> EnvironmentInfo:
