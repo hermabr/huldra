@@ -64,9 +64,17 @@ jobs:
           uv sync --all-extras
           cd dashboard-frontend && bun install
 
+      - name: Install e2e dependencies
+        if: steps.tag.outputs.should_release == 'true'
+        run: make dashboard-install-e2e
+
       - name: Build frontend
         if: steps.tag.outputs.should_release == 'true'
         run: make frontend-build
+
+      - name: Run tests
+        if: steps.tag.outputs.should_release == 'true'
+        run: make test-all
 
       - name: Build package
         if: steps.tag.outputs.should_release == 'true'
