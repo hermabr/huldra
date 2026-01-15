@@ -34,6 +34,20 @@ def test_load_or_create_returns_create_result_without_load(gren_tmp_root) -> Non
     assert obj._load_calls == 1
 
 
+def test_force_recompute_rebuilds_cached_results(gren_tmp_root, monkeypatch) -> None:
+    obj = Dummy()
+    assert obj.load_or_create() == 123
+    assert obj._create_calls == 1
+    assert obj._load_calls == 0
+
+    qualname = f"{obj.__class__.__module__}.{obj.__class__.__qualname__}"
+    monkeypatch.setattr(gren.GREN_CONFIG, "force_recompute", {qualname})
+
+    assert obj.load_or_create() == 123
+    assert obj._create_calls == 2
+    assert obj._load_calls == 0
+
+
 def test_exists_reflects_success_state(gren_tmp_root) -> None:
     obj = Dummy()
     assert obj.exists() is False

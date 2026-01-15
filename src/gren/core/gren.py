@@ -194,6 +194,12 @@ class Gren[T](ABC):
         """Compute hash of this object's content for storage identification."""
         return GrenSerializer.compute_hash(self)
 
+    def _force_recompute(self: Self) -> bool:
+        if not GREN_CONFIG.force_recompute:
+            return False
+        qualname = f"{self.__class__.__module__}.{self.__class__.__qualname__}"
+        return qualname in GREN_CONFIG.force_recompute
+
     @property
     def gren_dir(self: Self) -> Path:
         """Get the directory for this Gren object."""
@@ -287,18 +293,24 @@ class Gren[T](ABC):
                 self._reconcile(directory, adapter=adapter0)
                 state0 = StateManager.read_state(directory)
                 if isinstance(state0.result, _StateResultSuccess):
-                    try:
-                        if not self._validate():
-                            self._invalidate_cached_success(
-                                directory, reason="_validate returned false"
-                            )
-                            state0 = StateManager.read_state(directory)
-                    except Exception as e:
+                    if self._force_recompute():
                         self._invalidate_cached_success(
-                            directory,
-                            reason=f"_validate raised {type(e).__name__}: {e}",
+                            directory, reason="force_recompute enabled"
                         )
                         state0 = StateManager.read_state(directory)
+                    else:
+                        try:
+                            if not self._validate():
+                                self._invalidate_cached_success(
+                                    directory, reason="_validate returned false"
+                                )
+                                state0 = StateManager.read_state(directory)
+                        except Exception as e:
+                            self._invalidate_cached_success(
+                                directory,
+                                reason=f"_validate raised {type(e).__name__}: {e}",
+                            )
+                            state0 = StateManager.read_state(directory)
                 attempt0 = state0.attempt
                 if isinstance(state0.result, _StateResultSuccess):
                     decision = "success->load"

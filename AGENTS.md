@@ -2,6 +2,8 @@
 
 ## Critical Rules
 
+**Always update `CHANGELOG.md`** for any user-visible change.
+
 **DO NOT USE** the following patterns in this codebase:
 - `typing.Optional` - Use `X | None` instead
 - `typing.Any` - Only acceptable when the type is truly unknowable at compile time (e.g., deserializing arbitrary JSON, interacting with untyped third-party libraries). Always prefer protocols, generics, or concrete types.

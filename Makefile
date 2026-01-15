@@ -123,7 +123,8 @@ endif
 	@read -p "Continue? [y/N] " confirm && [ "$$confirm" = "y" ]
 	git checkout -b "release/v$(VERSION)"
 	sed -i '' 's/^version = ".*"/version = "$(VERSION)"/' pyproject.toml
-	git add pyproject.toml
+	uv sync
+	git add pyproject.toml uv.lock
 	git commit -m "bump version to v$(VERSION)"
 	git push --set-upstream origin "release/v$(VERSION)"
 	gh pr create --title "$(MESSAGE)" --body "Release v$(VERSION)" --base main

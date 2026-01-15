@@ -37,6 +37,11 @@ class GrenConfig:
             "true",
             "yes",
         }
+        self.force_recompute = {
+            item.strip()
+            for item in os.getenv("GREN_FORCE_RECOMPUTE", "").split(",")
+            if item.strip()
+        }
         self.cancelled_is_preempted = os.getenv(
             "GREN_CANCELLED_IS_PREEMPTED", "false"
         ).lower() in {"1", "true", "yes"}
