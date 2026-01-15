@@ -130,12 +130,27 @@ endif
 # Convenience targets for semver bumps
 release-patch:
 	@NEW_VERSION=$$(echo $(CURRENT_VERSION) | awk -F. '{print $$1"."$$2"."$$3+1}') && \
+	CHANGELOG_LINE=$$(sed -n '3p' CHANGELOG.md) && \
+	if [ "$$CHANGELOG_LINE" != "## v$$NEW_VERSION" ]; then \
+		echo "Error: CHANGELOG.md line 3 must be '## v$$NEW_VERSION', but found '$$CHANGELOG_LINE'"; \
+		exit 1; \
+	fi && \
 	$(MAKE) release-pr VERSION=$$NEW_VERSION
 
 release-minor:
 	@NEW_VERSION=$$(echo $(CURRENT_VERSION) | awk -F. '{print $$1"."$$2+1".0"}') && \
+	CHANGELOG_LINE=$$(sed -n '3p' CHANGELOG.md) && \
+	if [ "$$CHANGELOG_LINE" != "## v$$NEW_VERSION" ]; then \
+		echo "Error: CHANGELOG.md line 3 must be '## v$$NEW_VERSION', but found '$$CHANGELOG_LINE'"; \
+		exit 1; \
+	fi && \
 	$(MAKE) release-pr VERSION=$$NEW_VERSION
 
 release-major:
 	@NEW_VERSION=$$(echo $(CURRENT_VERSION) | awk -F. '{print $$1+1".0.0"}') && \
+	CHANGELOG_LINE=$$(sed -n '3p' CHANGELOG.md) && \
+	if [ "$$CHANGELOG_LINE" != "## v$$NEW_VERSION" ]; then \
+		echo "Error: CHANGELOG.md line 3 must be '## v$$NEW_VERSION', but found '$$CHANGELOG_LINE'"; \
+		exit 1; \
+	fi && \
 	$(MAKE) release-pr VERSION=$$NEW_VERSION
