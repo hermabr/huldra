@@ -1,7 +1,7 @@
 [project]
 name = "gren"
 version = "0.1.1"
-description = "Add your description here"
+description = "Cacheable, nested pipelines for Python. Define computations as configs; gren handles caching, state tracking, and result reuse across runs."
 readme = "README.md"
 authors = [
     { name = "Herman Brunborg", email = "herman@brunborg.com" }

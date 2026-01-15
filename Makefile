@@ -3,7 +3,7 @@
         dashboard-test dashboard-test-e2e \
         dashboard-install dashboard-install-e2e \
         frontend-lint frontend-test frontend-build frontend-generate \
-        release release-patch release-minor release-major
+        release release-pr release-patch release-minor release-major
 
 # ============================================================================
 # Main Project Commands
@@ -99,32 +99,46 @@ test-all: lint frontend-lint test dashboard-test-all
 
 # Get current version from pyproject.toml
 CURRENT_VERSION := $(shell grep '^version' pyproject.toml | head -1 | sed 's/.*"\(.*\)".*/\1/')
+CURRENT_BRANCH := $(shell git rev-parse --abbrev-ref HEAD)
 
-# Release with a specific version: make release VERSION=1.2.3
+# Tag current version: make release
 release: test-all
+	@echo "Tagging version: $(CURRENT_VERSION)"
+	git tag -a "v$(CURRENT_VERSION)" -m "Release v$(CURRENT_VERSION)"
+	git push --tags
+	@echo ""
+	@echo "Release v$(CURRENT_VERSION) tag pushed. GitHub Actions will create the release."
+
+# Create release PR with a specific version: make release-pr VERSION=1.2.3 MESSAGE="Title"
+release-pr: test-all
 ifndef VERSION
-	$(error VERSION is required. Usage: make release VERSION=1.2.3)
+	$(error VERSION is required. Usage: make release-pr VERSION=1.2.3 MESSAGE="Title")
 endif
+ifndef MESSAGE
+	$(error MESSAGE is required. Usage: make release-pr VERSION=1.2.3 MESSAGE="Title")
+endif
+	@if [ "$(CURRENT_BRANCH)" = "main" ]; then echo "release-pr must run from a non-main branch"; exit 1; fi
 	@echo "Current version: $(CURRENT_VERSION)"
 	@echo "New version: $(VERSION)"
 	@read -p "Continue? [y/N] " confirm && [ "$$confirm" = "y" ]
+	git checkout -b "release/v$(VERSION)"
 	sed -i '' 's/^version = ".*"/version = "$(VERSION)"/' pyproject.toml
 	git add pyproject.toml
-	git commit -m "release v$(VERSION)"
-	git tag -a "v$(VERSION)" -m "Release v$(VERSION)"
-	git push && git push --tags
+	git commit -m "bump version to v$(VERSION)"
+	git push --set-upstream origin "release/v$(VERSION)"
+	gh pr create --title "$(MESSAGE)" --body "Release v$(VERSION)" --base main
 	@echo ""
-	@echo "Release v$(VERSION) pushed. GitHub Actions will create the release."
+	@echo "Release PR created for v$(VERSION)."
 
 # Convenience targets for semver bumps
 release-patch:
 	@NEW_VERSION=$$(echo $(CURRENT_VERSION) | awk -F. '{print $$1"."$$2"."$$3+1}') && \
-	$(MAKE) release VERSION=$$NEW_VERSION
+	$(MAKE) release-pr VERSION=$$NEW_VERSION MESSAGE="$(MESSAGE)"
 
 release-minor:
 	@NEW_VERSION=$$(echo $(CURRENT_VERSION) | awk -F. '{print $$1"."$$2+1".0"}') && \
-	$(MAKE) release VERSION=$$NEW_VERSION
+	$(MAKE) release-pr VERSION=$$NEW_VERSION MESSAGE="$(MESSAGE)"
 
 release-major:
 	@NEW_VERSION=$$(echo $(CURRENT_VERSION) | awk -F. '{print $$1+1".0.0"}') && \
-	$(MAKE) release VERSION=$$NEW_VERSION
+	$(MAKE) release-pr VERSION=$$NEW_VERSION MESSAGE="$(MESSAGE)"

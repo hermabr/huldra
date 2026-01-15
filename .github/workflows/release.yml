@@ -2,8 +2,10 @@ name: Release
 
 on:
   push:
-    tags:
-      - 'v*'
+    branches:
+      - main
+    paths:
+      - pyproject.toml
 
 permissions:
   contents: write
@@ -15,6 +17,8 @@ jobs:
     environment: pypi
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - name: Install uv
         uses: astral-sh/setup-uv@v4
@@ -25,22 +29,63 @@ jobs:
       - name: Install bun
         uses: oven-sh/setup-bun@v2
 
+      - name: Read version
+        id: version
+        run: |
+          python - <<'PY'
+          import tomllib
+          from pathlib import Path
+
+          data = tomllib.loads(Path("pyproject.toml").read_text())
+          version = data["project"]["version"]
+          print(f"version={version}")
+          Path("version.txt").write_text(version)
+          PY
+          echo "version=$(cat version.txt)" >> $GITHUB_OUTPUT
+
+      - name: Check release
+        id: tag
+        run: |
+          git fetch --tags
+          if git rev-parse "v${{ steps.version.outputs.version }}" >/dev/null 2>&1; then
+            echo "should_release=false" >> $GITHUB_OUTPUT
+            exit 0
+          fi
+
+          if git diff -U0 HEAD^ HEAD -- pyproject.toml | grep -E '^[+-]version = "' >/dev/null; then
+            echo "should_release=true" >> $GITHUB_OUTPUT
+          else
+            echo "should_release=false" >> $GITHUB_OUTPUT
+          fi
+
       - name: Install dependencies
+        if: steps.tag.outputs.should_release == 'true'
         run: |
           uv sync --all-extras
           cd dashboard-frontend && bun install
 
       - name: Build frontend
+        if: steps.tag.outputs.should_release == 'true'
         run: make frontend-build
 
       - name: Build package
+        if: steps.tag.outputs.should_release == 'true'
         run: uv build
 
+      - name: Create tag
+        if: steps.tag.outputs.should_release == 'true'
+        run: |
+          git tag "v${{ steps.version.outputs.version }}"
+          git push origin "v${{ steps.version.outputs.version }}"
+
       - name: Publish to PyPI
+        if: steps.tag.outputs.should_release == 'true'
         uses: pypa/gh-action-pypi-publish@release/v1
 
       - name: Create GitHub Release
+        if: steps.tag.outputs.should_release == 'true'
         uses: softprops/action-gh-release@v2
         with:
+          tag_name: "v${{ steps.version.outputs.version }}"
           files: dist/*
           generate_release_notes: true
