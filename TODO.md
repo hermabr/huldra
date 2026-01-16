@@ -14,6 +14,8 @@
 - [ ] support doing time machine to go back to the state at the time an artifact was created
 - [ ] check how to make implicit dependencies (probably this is doable with chz?)
 - [ ] add a flag which makes one item always rerun, such as HULDRA_ALWAYS_RERUN="mypkg.my_file.MyObject"
+- [ ] Add support for lazily computing dependencies (maybe)
+- [ ] Change the version controlled flow so that it is always saved in the current folder at the same level as the pyproject.toml if that exists and in .gitignore if that exists and if not it throws. This should happen even if the general gren directory is somewhere else. It should save it to something like gren-data/artifacts or a better similar name. It should be possible to override this with an env variable.
 
 ## Code Quality
 
