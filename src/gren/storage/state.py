@@ -58,31 +58,35 @@ class _ErrorDict(TypedDict, total=False):
 class _StateResultBase(BaseModel):
     model_config = ConfigDict(extra="forbid", validate_assignment=True, strict=True)
 
-    status: str
-
 
 class _StateResultAbsent(_StateResultBase):
-    status: Literal["absent"]
+    status: Literal["absent"] = "absent"
 
 
 class _StateResultIncomplete(_StateResultBase):
-    status: Literal["incomplete"]
+    status: Literal["incomplete"] = "incomplete"
 
 
 class _StateResultSuccess(_StateResultBase):
-    status: Literal["success"]
+    status: Literal["success"] = "success"
     created_at: str
 
 
 class _StateResultFailed(_StateResultBase):
-    status: Literal["failed"]
+    status: Literal["failed"] = "failed"
+
+
+class _StateResultMigrated(_StateResultBase):
+    status: Literal["migrated"] = "migrated"
+    migrated_at: str
 
 
 _StateResult = Annotated[
     _StateResultAbsent
     | _StateResultIncomplete
     | _StateResultSuccess
-    | _StateResultFailed,
+    | _StateResultFailed
+    | _StateResultMigrated,
     Field(discriminator="status"),
 ]
 
@@ -103,6 +107,12 @@ def _coerce_result(current: _StateResult, **updates: str) -> _StateResult:
             return _StateResultSuccess(status="success", created_at=created_at)
         case "failed":
             return _StateResultFailed(status="failed")
+        case "migrated":
+            migrated_at = data.get("migrated_at")
+            if not isinstance(migrated_at, str) or not migrated_at:
+                raise ValueError("Migrated result requires migrated_at")
+            return _StateResultMigrated(status="migrated", migrated_at=migrated_at)
+
         case _:
             raise ValueError(f"Invalid result status: {status!r}")
 
@@ -157,7 +167,6 @@ class _StateAttemptBase(BaseModel):
     id: str
     number: int = 1
     backend: str
-    status: str
     started_at: str
     heartbeat_at: str
     lease_duration_sec: float
@@ -407,7 +416,9 @@ class StateManager:
         if not lines:
             return None
         data = json.loads(lines[0])
-        return data if isinstance(data, dict) else None
+        if isinstance(data, dict):
+            return data  # type: ignore[return-value]
+        return None
 
     @classmethod
     def _acquire_lock_blocking(
@@ -573,7 +584,7 @@ class StateManager:
             lease_expires_at = expires.isoformat(timespec="seconds")
             scheduler_state: SchedulerMetadata = scheduler or {}
 
-            attempt_common = dict(
+            attempt_kwargs = dict(
                 id=attempt_id,
                 number=int(number),
                 backend=backend,
@@ -584,7 +595,7 @@ class StateManager:
                 owner=owner_state,
                 scheduler=scheduler_state,
             )
-            state.attempt = attempt_cls(**attempt_common)
+            state.attempt = attempt_cls(**attempt_kwargs)  # type: ignore[arg-type, misc]
 
             state.result = _coerce_result(state.result, status="incomplete")
 
@@ -880,9 +891,7 @@ class StateManager:
                     owner=attempt.owner,
                     scheduler=attempt.scheduler,
                     ended_at=now,
-                    error=GrenErrorState(
-                        type="GrenComputeError", message=reason or ""
-                    ),
+                    error=GrenErrorState(type="GrenComputeError", message=reason or ""),
                     reason=reason,
                 )
             else:
@@ -1038,9 +1047,7 @@ def compute_lock(
                 "Cannot acquire lock: experiment already succeeded"
             )
         if isinstance(state.result, _StateResultFailed):
-            raise GrenLockNotAcquired(
-                "Cannot acquire lock: experiment already failed"
-            )
+            raise GrenLockNotAcquired("Cannot acquire lock: experiment already failed")
 
         # If no active attempt but lock exists, it's orphaned - clean it up
         if attempt is None or isinstance(

@@ -21,6 +21,8 @@
 - For type/import changes: run `make lint`
 - For logic/behavior changes: run `make test` or `make test-all` or `make dashboard-test` or `make dashboard-test-e2e`
 
+- The project was renamed from huldra to gren. If I ever refer to huldra, assume I mean gren.
+
 ---
 
 ## Project Structure

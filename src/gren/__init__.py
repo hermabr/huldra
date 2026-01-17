@@ -18,6 +18,7 @@ from .errors import (
     GrenComputeError,
     GrenError,
     GrenLockNotAcquired,
+    GrenMigrationRequired,
     GrenWaitTimeout,
     MISSING,
 )
@@ -31,6 +32,7 @@ from .runtime import (
     log,
     write_separator,
 )
+from .migrate import migrate
 from .serialization import GrenSerializer
 from .storage import MetadataManager, StateManager
 
@@ -43,9 +45,11 @@ __all__ = [
     "GrenError",
     "GrenList",
     "GrenLockNotAcquired",
+    "GrenMigrationRequired",
     "GrenSerializer",
     "GrenWaitTimeout",
     "MISSING",
+    "migrate",
     "MetadataManager",
     "StateManager",
     "SubmititAdapter",

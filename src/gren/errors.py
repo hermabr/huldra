@@ -60,3 +60,17 @@ class GrenComputeError(GrenError):
                 msg += f"\n\nTraceback:\n{tb}"
         msg += f"\n\nState file: {self.state_path}"
         return msg
+
+
+class GrenMigrationRequired(GrenError):
+    """Raised when a migrated object requires explicit migration."""
+
+    def __init__(self, message: str, *, state_path: Path | None = None):
+        self.state_path = state_path
+        super().__init__(message)
+
+    def __str__(self) -> str:
+        msg = super().__str__()  # ty: ignore[invalid-super-argument]
+        if self.state_path is not None:
+            msg += f"\n\nState file: {self.state_path}"
+        return msg

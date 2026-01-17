@@ -14,7 +14,7 @@ from pydantic import BaseModel, ConfigDict
 from ..config import GREN_CONFIG
 from ..serialization import BaseModel as PydanticBaseModel
 from ..serialization import GrenSerializer
-from ..serialization.serializer import JsonValue
+from ..serialization.serializer import DEFAULT_GREN_VERSION, JsonValue
 
 if TYPE_CHECKING:
     from ..core.gren import Gren
@@ -29,7 +29,6 @@ def clear_metadata_cache() -> None:
     global _cached_git_info, _cached_git_info_time
     _cached_git_info = None
     _cached_git_info_time = 0.0
-
 
 
 class GitInfo(BaseModel):
@@ -69,6 +68,7 @@ class GrenMetadata(BaseModel):
     gren_obj: JsonValue  # Serialized Gren object from GrenSerializer.to_dict()
     gren_hash: str
     gren_path: str
+    gren_version: float
 
     # Git info
     git_commit: str
@@ -230,11 +230,16 @@ class MetadataManager:
                 f"Expected GrenSerializer.to_dict to return dict, got {type(serialized_obj)}"
             )
 
+        gren_version = serialized_obj.get("gren_version")
+        if not isinstance(gren_version, (float, int)):
+            gren_version = DEFAULT_GREN_VERSION
+
         return GrenMetadata(
             gren_python_def=GrenSerializer.to_python(gren_obj, multiline=False),
             gren_obj=serialized_obj,
             gren_hash=GrenSerializer.compute_hash(gren_obj),
             gren_path=str(directory.resolve()),
+            gren_version=float(gren_version),
             git_commit=git_info.git_commit,
             git_branch=git_info.git_branch,
             git_remote=git_info.git_remote,

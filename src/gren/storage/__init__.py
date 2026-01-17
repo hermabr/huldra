@@ -5,6 +5,7 @@ from .metadata import (
     MetadataManager,
     clear_metadata_cache,
 )
+from .migration import MigrationManager, MigrationRecord
 from .state import (
     ComputeLockContext,
     GrenErrorState,
@@ -21,6 +22,8 @@ __all__ = [
     "GrenErrorState",
     "GrenMetadata",
     "MetadataManager",
+    "MigrationManager",
+    "MigrationRecord",
     "StateAttempt",
     "StateManager",
     "StateOwner",

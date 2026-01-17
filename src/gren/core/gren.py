@@ -10,7 +10,7 @@ import traceback
 from abc import ABC, abstractmethod
 from pathlib import Path
 from types import FrameType
-from typing import Any, Callable, Self, TypedDict, TypeVar, cast, overload
+from typing import Any, Callable, ClassVar, Self, TypedDict, TypeVar, cast, overload
 
 import chz
 import submitit
@@ -23,6 +23,7 @@ from ..errors import (
     MISSING,
     GrenComputeError,
     GrenLockNotAcquired,
+    GrenMigrationRequired,
     GrenWaitTimeout,
 )
 from ..runtime import current_holder
@@ -30,7 +31,14 @@ from ..runtime.logging import enter_holder, get_logger, log, write_separator
 from ..runtime.tracebacks import format_traceback
 from ..serialization import GrenSerializer
 from ..serialization.serializer import JsonValue
-from ..storage import GrenMetadata, MetadataManager, StateManager
+from ..storage import (
+    GrenMetadata,
+    MetadataManager,
+    MigrationManager,
+    MigrationRecord,
+    StateManager,
+    StateOwner,
+)
 from ..storage.state import (
     _GrenState,
     _StateAttemptFailed,
@@ -38,7 +46,7 @@ from ..storage.state import (
     _StateAttemptRunning,
     _StateResultAbsent,
     _StateResultFailed,
-    _StateResultSuccess,
+    _StateResultMigrated,
     _StateResultSuccess,
     compute_lock,
 )
@@ -77,8 +85,10 @@ class Gren[T](ABC):
 
     MISSING = MISSING
 
+    gren_version: float = chz.field(default=1.0)
+
     # Configuration (can be overridden in subclasses)
-    version_controlled: bool = False
+    version_controlled: ClassVar[bool] = False
 
     # Maximum time to wait for result (seconds). Default: 10 minutes.
     _max_wait_time_sec: float = 600.0
@@ -115,11 +125,12 @@ class Gren[T](ABC):
 
         FieldType: type[object] | None
         try:
-            from chz.data_model import Field as _ChzField  # type: ignore
+            from chz.field import Field as _ChzField
         except Exception:  # pragma: no cover
             FieldType = None
         else:
             FieldType = _ChzField
+
         if FieldType is not None:
             for field_name, value in cls.__dict__.items():
                 if isinstance(value, FieldType) and field_name not in annotations:
@@ -205,7 +216,11 @@ class Gren[T](ABC):
     def gren_dir(self: Self) -> Path:
         """Get the directory for this Gren object."""
         root = GREN_CONFIG.get_root(self.version_controlled)
-        return root / self.__class__._namespace() / self._gren_hash
+        directory = root / self.__class__._namespace() / self._gren_hash
+        migration = MigrationManager.read_migration(directory)
+        if migration is not None and migration.kind == "alias":
+            return MigrationManager.resolve_dir(migration, target="from")
+        return directory
 
     @property
     def raw_dir(self: Self) -> Path:
@@ -239,6 +254,13 @@ class Gren[T](ABC):
         directory = self.gren_dir
         state = StateManager.read_state(directory)
 
+        if isinstance(state.result, _StateResultMigrated):
+            target = self._migration_target_dir(directory)
+            if target is None:
+                logger.info("exists %s -> false", directory)
+                return False
+            state = StateManager.read_state(target)
+
         if not isinstance(state.result, _StateResultSuccess):
             logger.info("exists %s -> false", directory)
             return False
@@ -249,7 +271,8 @@ class Gren[T](ABC):
 
     def get_metadata(self: Self) -> "GrenMetadata":
         """Get metadata for this object."""
-        return MetadataManager.read_metadata(self.gren_dir)
+        directory = self.gren_dir
+        return MetadataManager.read_metadata(directory)
 
     @overload
     def load_or_create(self, executor: submitit.Executor) -> T | submitit.Job[T]: ...
@@ -290,6 +313,12 @@ class Gren[T](ABC):
                 start_time = time.time()
                 directory = self.gren_dir
                 directory.mkdir(parents=True, exist_ok=True)
+
+                if self._is_migrated_state(directory) and not self._force_recompute():
+                    raise GrenMigrationRequired(
+                        f"{self.__class__.__name__} is migrated; run gren.migrate()",
+                        state_path=StateManager.get_state_path(directory),
+                    )
 
                 # Optimistic read: if state is already good, we don't need to reconcile (write lock)
                 # Optimization: Check for success marker first to avoid reading state.json
@@ -499,6 +528,21 @@ class Gren[T](ABC):
                     f"Gren operation timed out after {self._max_wait_time_sec} seconds."
                 )
 
+    def _is_migrated_state(self, directory: Path) -> bool:
+        state = StateManager.read_state(directory)
+        return isinstance(state.result, _StateResultMigrated)
+
+    def _migration_target_dir(self, directory: Path) -> Path | None:
+        record = MigrationManager.read_migration(directory)
+        if record is None:
+            return None
+        if record.kind != "alias":
+            return None
+        return MigrationManager.resolve_dir(record, target="from")
+
+    def _resolve_effective_dir(self) -> Path:
+        return self.gren_dir
+
     def _submit_once(
         self,
         adapter: SubmititAdapter,
@@ -533,6 +577,7 @@ class Gren[T](ABC):
             time.sleep(0.5)
             return adapter.load_job(directory)
 
+        attempt_id: str | None = None
         try:
             # Create metadata
             metadata = MetadataManager.create_metadata(
@@ -540,11 +585,24 @@ class Gren[T](ABC):
             )
             MetadataManager.write_metadata(metadata, directory)
 
+            env_info = MetadataManager.collect_environment_info()
+            owner_state = StateOwner(
+                pid=env_info.pid,
+                host=env_info.hostname,
+                hostname=env_info.hostname,
+                user=env_info.user,
+                command=env_info.command,
+                timestamp=env_info.timestamp,
+                python_version=env_info.python_version,
+                executable=env_info.executable,
+                platform=env_info.platform,
+            )
+            owner_payload = owner_state.model_dump()
             attempt_id = StateManager.start_attempt_queued(
                 directory,
                 backend="submitit",
                 lease_duration_sec=GREN_CONFIG.lease_duration_sec,
-                owner=MetadataManager.collect_environment_info().model_dump(),
+                owner=owner_payload,  # type: ignore[arg-type]
                 scheduler={},
             )
             job = adapter.submit(lambda: self._worker_entry())
@@ -560,10 +618,10 @@ class Gren[T](ABC):
 
             return job
         except Exception as e:
-            if "attempt_id" in locals():
+            if attempt_id is not None:
                 StateManager.finish_attempt_failed(
                     directory,
-                    attempt_id=attempt_id,
+                    attempt_id=attempt_id,  # type: ignore[arg-type]
                     error={
                         "type": type(e).__name__,
                         "message": f"Failed to submit: {e}",
