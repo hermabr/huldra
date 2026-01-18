@@ -31,11 +31,22 @@ No interactive prompts are part of the core API. The workflow is:
 ```
 Primitive = str | int | float | bool | None
 JsonValue = (
-  str | int | float | bool | None |
+  Primitive |
   list[JsonValue] |
   dict[str, JsonValue]
 )
+MigrationValue = (
+  Primitive |
+  Gren |
+  tuple[MigrationValue, ...] |
+  dict[str, MigrationValue]
+)
 ```
+
+MigrationValue is resolved to JsonValue before hashing.
+- Gren objects are serialized via GrenSerializer.to_dict(...)["gren_obj"].
+- Tuples are normalized to JSON arrays during serialization.
+- Non-serializable objects are not allowed; convert them to dict/tuple/primitive.
 
 ### NamespacePair
 Used for specifying different from/to namespaces in a single argument.
@@ -70,12 +81,42 @@ class MigrationCandidate:
     extra_fields: list[str]
 ```
 
+### MigrationSkip
+```
+@dataclass(frozen=True)
+class MigrationSkip:
+    candidate: MigrationCandidate
+    reason: str
+```
+
 ## Public API
 
 ### 1) find_migration_candidates
 Schema-driven candidate discovery (uninitialized target).
 
 ```
+@overload
+def find_migration_candidates(
+    *,
+    namespace: str,
+    to_obj: type[Gren],
+    default_values: Mapping[str, Primitive] | None = None,
+    default_fields: Iterable[str] | None = None,
+    drop_fields: Iterable[str] | None = None,
+) -> list[MigrationCandidate]:
+    ...
+
+@overload
+def find_migration_candidates(
+    *,
+    namespace: NamespacePair,
+    to_obj: None = None,
+    default_values: Mapping[str, Primitive] | None = None,
+    default_fields: Iterable[str] | None = None,
+    drop_fields: Iterable[str] | None = None,
+) -> list[MigrationCandidate]:
+    ...
+
 def find_migration_candidates(
     *,
     namespace: str | NamespacePair,
@@ -90,19 +131,15 @@ def find_migration_candidates(
 Rules:
 - `namespace` must be provided.
 - `namespace` can be:
-  - `str`: shared namespace
+  - `str`: shared namespace (requires `to_obj`)
   - `NamespacePair`: explicit from/to namespaces
-- Exactly one of:
-  - `to_obj` (class/uninitialized), OR
-  - `NamespacePair.to_namespace`
 - If `namespace` is `NamespacePair`, `to_obj` must be `None`.
-- If `namespace` is `str` and `to_obj` provided:
-  - `from_namespace = namespace`
-  - `to_namespace = to_obj` namespace
+- If `namespace` is `str`, `to_obj` must be provided.
+- `to_obj` must be a class (uninitialized); passing an instance throws.
 - Defaults are applied only if the field appears in `default_fields`.
 - When defaults are used, they come from:
   - `to_obj` class defaults if `to_obj` provided
-  - target class defaults if `to_obj` not provided
+  - target class defaults if `NamespacePair` is used
 - If a requested default field has no class default, throw.
 - `default_values` always takes precedence over class defaults when present.
 
@@ -121,15 +158,41 @@ def find_migration_candidates_initialized_target(
 ```
 
 Rules:
-- `to_obj` must be an instance.
+- `to_obj` must be an instance; passing a class (uninitialized) throws.
 - Compare candidates against the concrete serialized config of `to_obj`.
 - `default_fields` (if provided) fill missing fields using `to_obj` values.
 - No class defaults are used here.
 
 ### 3) apply_migration
-Apply a single candidate. No prompt/auto logic here.
+Apply a single candidate.
 
 ```
+@overload
+def apply_migration(
+    candidate: MigrationCandidate,
+    *,
+    policy: Literal["alias", "move", "copy"] = "alias",
+    cascade: bool = True,
+    origin: str | None = None,
+    note: str | None = None,
+    force_overwrite: bool = False,
+    on_conflict: Literal["throw"] = "throw",
+) -> list[MigrationRecord]:
+    ...
+
+@overload
+def apply_migration(
+    candidate: MigrationCandidate,
+    *,
+    policy: Literal["alias", "move", "copy"] = "alias",
+    cascade: bool = True,
+    origin: str | None = None,
+    note: str | None = None,
+    force_overwrite: bool = False,
+    on_conflict: Literal["skip"],
+) -> list[MigrationRecord | MigrationSkip]:
+    ...
+
 def apply_migration(
     candidate: MigrationCandidate,
     *,
@@ -139,7 +202,7 @@ def apply_migration(
     note: str | None = None,
     force_overwrite: bool = False,
     on_conflict: Literal["throw", "skip"] = "throw",
-) -> list[MigrationRecord]:
+) -> list[MigrationRecord | MigrationSkip]:
     ...
 ```
 
@@ -151,7 +214,8 @@ Behavior:
     - `force_overwrite=False` and `on_conflict="throw"` -> error
     - `force_overwrite=False` and `on_conflict="skip"` -> warn + skip
     - `force_overwrite=True` -> proceed + log overwrite event
-- Skips return `[]` (no records) with warning.
+- When `on_conflict="throw"`, return only `MigrationRecord` entries.
+- When `on_conflict="skip"`, return a mixed list containing `MigrationRecord` and `MigrationSkip` entries.
 
 ## Validation Rules (Strict)
 
@@ -168,13 +232,17 @@ When building candidates:
    - Missing fields -> error
    - Extra fields -> error
 5) Set `__class__` to target namespace.
-6) Compute new hash from `to_config`.
+6) Type-check the candidate config by reconstructing the target object and running chz type checks:
+   - `obj = GrenSerializer.from_dict(to_config)`
+   - `validators.for_all_fields(validators.typecheck)(obj)`
+7) Compute new hash from `to_config`.
 
 ## Error Messages (exact strings)
 
 ### Input validation
 - `migration: namespace must be str or NamespacePair`
 - `migration: to_obj must be a class (use find_migration_candidates_initialized_target for instances)`
+- `migration: to_obj must be an instance (use find_migration_candidates for classes)`
 - `migration: to_obj cannot be used with NamespacePair`
 - `migration: namespace is required`
 
@@ -221,6 +289,7 @@ Warnings:
 ## Implementation Notes / Constraints
 - Follow repo rules: no Optional, no Any, no untyped dict.
 - Prefer `Mapping[str, Primitive]`, `dict[str, JsonValue]`.
+- Use chz validators for type checking (see Validation Rules).
 - No try/except for control flow.
 - Always update `CHANGELOG.md` for user-visible change.
 - Use `make lint` / `make test` / `make dashboard-test` / `make dashboard-test-e2e`.
