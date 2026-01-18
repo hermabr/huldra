@@ -74,11 +74,11 @@ test.describe("Experiments Page", () => {
     const migrationRow = page.locator("tr", { has: page.getByText("alias") }).first();
     await migrationRow.locator("a").first().click();
 
-    await expect(page.getByText("View original")).toBeVisible();
-    await expect(page.getByText("Original")).toBeVisible();
-    await expect(page.getByText("Aliased")).toBeVisible();
+    await expect(page.getByRole("link", { name: "View original" })).toBeVisible();
+    await expect(page.getByRole("button", { name: "Original" })).toBeVisible();
+    await expect(page.getByRole("button", { name: "Aliased" })).toBeVisible();
 
-    await page.getByText("Original").click();
+    await page.getByRole("button", { name: "Original" }).click();
     await expect(page.getByText("Original status:")).toBeVisible();
   });
 
