@@ -75,7 +75,7 @@ class MigrationCandidate:
     to_ref: GrenRef
     to_namespace: str
     to_config: dict[str, JsonValue]      # final serialized config used for hash
-    defaults_applied: dict[str, Primitive]
+    defaults_applied: dict[str, MigrationValue]
     fields_dropped: list[str]
     missing_fields: list[str]
     extra_fields: list[str]
@@ -292,7 +292,7 @@ Warnings:
 
 ## Implementation Notes / Constraints
 - Follow repo rules: no Optional, no Any, no untyped dict.
-- Prefer `Mapping[str, Primitive]`, `dict[str, JsonValue]`.
+- Prefer `Mapping[str, MigrationValue]`, `dict[str, JsonValue]`.
 - Use chz validators for type checking (see Validation Rules).
 - No try/except for control flow.
 - Always update `CHANGELOG.md` for user-visible change.

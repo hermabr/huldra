@@ -1,7 +1,5 @@
 import json
 
-import json
-
 import gren
 from gren.storage import MigrationManager, StateManager
 from gren.storage.state import _StateResultMigrated, _StateResultSuccess
@@ -71,8 +69,8 @@ def _events_for(directory) -> list[dict[str, str | int]]:
 
 
 def test_migrate_move_transfers_payload(gren_tmp_root) -> None:
-    from_obj = MigrationDummy(value=1)
-    to_obj = MigrationDummy(value=2)
+    from_obj = RenamedSource(value=1)
+    to_obj = RenamedTarget(value=1)
 
     assert from_obj.load_or_create() == 1
 
@@ -97,8 +95,8 @@ def test_migrate_move_transfers_payload(gren_tmp_root) -> None:
 
 
 def test_migrate_alias_force_recompute_detaches(gren_tmp_root, monkeypatch) -> None:
-    from_obj = MigrationDummy(value=1)
-    to_obj = MigrationDummy(value=2)
+    from_obj = RenamedSource(value=1)
+    to_obj = RenamedTarget(value=1)
 
     assert from_obj.load_or_create() == 1
 
@@ -111,11 +109,11 @@ def test_migrate_alias_force_recompute_detaches(gren_tmp_root, monkeypatch) -> N
     qualname = f"{to_obj.__class__.__module__}.{to_obj.__class__.__qualname__}"
     monkeypatch.setattr(gren.GREN_CONFIG, "force_recompute", {qualname})
 
-    assert to_obj.load_or_create() == 2
+    assert to_obj.load_or_create() == 1
 
     state_after = StateManager.read_state(alias_dir)
     assert isinstance(state_after.result, _StateResultSuccess)
-    assert (alias_dir / "value.txt").read_text() == "2"
+    assert (alias_dir / "value.txt").read_text() == "1"
 
     alias_record = MigrationManager.read_migration(alias_dir)
     assert alias_record is not None
@@ -167,13 +165,20 @@ def test_migrate_alias_with_added_field_default(gren_tmp_root) -> None:
 
     assert from_obj.load_or_create() == 5
 
-    gren.migrate(
-        from_obj,
-        to_obj,
+    candidates = gren.find_migration_candidates(
+        namespace=gren.NamespacePair(
+            from_namespace="test_migrations.AddedFieldV1",
+            to_namespace="test_migrations.AddedFieldV2",
+        ),
+        default_values={"extra": "default"},
+    )
+    assert len(candidates) == 1
+
+    gren.apply_migration(
+        candidates[0],
         policy="alias",
         origin="tests",
         note="added-field",
-        default_values={"extra": "default"},
     )
 
     alias_record = MigrationManager.read_migration(to_obj._base_gren_dir())

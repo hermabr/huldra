@@ -7,6 +7,7 @@ from typing import Literal
 from pydantic import BaseModel, ConfigDict
 
 from ..config import GREN_CONFIG
+from ..serialization.serializer import JsonValue
 
 
 RootKind = Literal["data", "git"]
@@ -21,15 +22,13 @@ class MigrationRecord(BaseModel):
     policy: MigrationPolicy
     from_namespace: str
     from_hash: str
-    from_version: float
     from_root: RootKind
     to_namespace: str
     to_hash: str
-    to_version: float
     to_root: RootKind
     migrated_at: str
     overwritten_at: str | None = None
-    default_values: dict[str, str | int | float | bool] | None = None
+    default_values: dict[str, JsonValue] | None = None
     origin: str | None = None
     note: str | None = None
 
@@ -64,14 +63,14 @@ class MigrationManager:
     ) -> Path:
         if target == "from":
             namespace = record.from_namespace
-            digest = record.from_hash
+            gren_hash = record.from_hash
             root_kind = record.from_root
         else:
             namespace = record.to_namespace
-            digest = record.to_hash
+            gren_hash = record.to_hash
             root_kind = record.to_root
         root = GREN_CONFIG.get_root(version_controlled=root_kind == "git")
-        return root / Path(*namespace.split(".")) / digest
+        return root / Path(*namespace.split(".")) / gren_hash
 
     @classmethod
     def root_kind_for_dir(cls, directory: Path) -> RootKind:

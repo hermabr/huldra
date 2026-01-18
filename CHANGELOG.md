@@ -2,6 +2,8 @@
 
 ## v0.2.0
 - Add explicit migration alias tracking with overwrite logging and dashboard views for aliased vs original experiments.
+- Tighten initialized-target migration candidate filtering to avoid mismatched configs.
+- Update migration tests for initialized-target matching and explicit defaults.
 - Update state migration handling to store migrated status in state.json and keep migration metadata in migration.json.
 - Add migration regression tests for rename/added-field alias cases plus recompute detach events.
 - Extend dashboard e2e fixtures/tests to cover migrated experiment tags and original/aliased navigation.

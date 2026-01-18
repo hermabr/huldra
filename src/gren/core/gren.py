@@ -563,6 +563,15 @@ class Gren[T](ABC):
     def _resolve_effective_dir(self) -> Path:
         return self._base_gren_dir()
 
+    def get_state(self, directory: Path | None = None) -> _GrenState:
+        """Return the alias-aware state for this Gren directory."""
+        base_dir = directory or self._base_gren_dir()
+        record = self._alias_record(base_dir)
+        if record is None or not self._alias_is_active(base_dir, record):
+            return StateManager.read_state(base_dir)
+        target_dir = MigrationManager.resolve_dir(record, target="from")
+        return StateManager.read_state(target_dir)
+
     def _alias_record(self, directory: Path) -> MigrationRecord | None:
         record = MigrationManager.read_migration(directory)
         if record is None or record.kind != "alias":
