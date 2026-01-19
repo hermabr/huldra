@@ -39,6 +39,7 @@
 - [ ] Orphan detection - Find artifacts no longer referenced by code
 - [ ] Cache miss explanation - "This will recompute because field X changed"
 - [ ] Hash diff tool - Show which fields differ between two experiments
+- [ ] Have a def _dependencies(self) -> list[type[Gren]] which returns all the dependencies of the experiment that i don't want to define as fields
 
 ## Execution & Compute
 
