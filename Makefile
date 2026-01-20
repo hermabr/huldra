@@ -3,7 +3,7 @@
         dashboard-test dashboard-test-e2e \
         dashboard-install dashboard-install-e2e \
         frontend-lint frontend-test frontend-build frontend-generate \
-        release release-pr release-patch release-minor release-major
+        release release-pr release-bump release-patch release-minor release-major
 
 # ============================================================================
 # Main Project Commands
@@ -120,7 +120,7 @@ endif
 	git checkout -b "release/v$(VERSION)"
 	sed -i '' 's/^version = ".*"/version = "$(VERSION)"/' pyproject.toml
 	uv sync
-	git add pyproject.toml uv.lock
+	git add pyproject.toml uv.lock CHANGELOG.md
 	git commit -m "bump version to v$(VERSION)"
 	git push --set-upstream origin "release/v$(VERSION)"
 	gh pr create --title "Release v$(VERSION)" --body "$(or $(MESSAGE),Release v$(VERSION))" --base main
@@ -128,29 +128,26 @@ endif
 	@echo "Release PR created for v$(VERSION)."
 
 # Convenience targets for semver bumps
-release-patch:
-	@NEW_VERSION=$$(echo $(CURRENT_VERSION) | awk -F. '{print $$1"."$$2"."$$3+1}') && \
-	CHANGELOG_LINE=$$(sed -n '3p' CHANGELOG.md) && \
-	if [ "$$CHANGELOG_LINE" != "## v$$NEW_VERSION" ]; then \
-		echo "Error: CHANGELOG.md line 3 must be '## v$$NEW_VERSION', but found '$$CHANGELOG_LINE'"; \
+release-bump:
+	@case "$(BUMP)" in \
+		patch) NEW_VERSION=$$(echo $(CURRENT_VERSION) | awk -F. '{print $$1"."$$2"."$$3+1}') ;; \
+		minor) NEW_VERSION=$$(echo $(CURRENT_VERSION) | awk -F. '{print $$1"."$$2+1".0"}') ;; \
+		major) NEW_VERSION=$$(echo $(CURRENT_VERSION) | awk -F. '{print $$1+1".0.0"}') ;; \
+		*) echo "Error: BUMP must be patch, minor, or major"; exit 1 ;; \
+	esac; \
+	CHANGELOG_LINE=$$(sed -n '3p' CHANGELOG.md); \
+	if [ "$$CHANGELOG_LINE" != "## Unreleased" ]; then \
+		echo "Error: CHANGELOG.md line 3 must be '## Unreleased', but found '$$CHANGELOG_LINE'"; \
 		exit 1; \
-	fi && \
+	fi; \
+	sed -i '' '1,/^## Unreleased/s/^## Unreleased/## v'"$$NEW_VERSION"'/' CHANGELOG.md; \
 	$(MAKE) release-pr VERSION=$$NEW_VERSION
+
+release-patch:
+	@$(MAKE) release-bump BUMP=patch
 
 release-minor:
-	@NEW_VERSION=$$(echo $(CURRENT_VERSION) | awk -F. '{print $$1"."$$2+1".0"}') && \
-	CHANGELOG_LINE=$$(sed -n '3p' CHANGELOG.md) && \
-	if [ "$$CHANGELOG_LINE" != "## v$$NEW_VERSION" ]; then \
-		echo "Error: CHANGELOG.md line 3 must be '## v$$NEW_VERSION', but found '$$CHANGELOG_LINE'"; \
-		exit 1; \
-	fi && \
-	$(MAKE) release-pr VERSION=$$NEW_VERSION
+	@$(MAKE) release-bump BUMP=minor
 
 release-major:
-	@NEW_VERSION=$$(echo $(CURRENT_VERSION) | awk -F. '{print $$1+1".0.0"}') && \
-	CHANGELOG_LINE=$$(sed -n '3p' CHANGELOG.md) && \
-	if [ "$$CHANGELOG_LINE" != "## v$$NEW_VERSION" ]; then \
-		echo "Error: CHANGELOG.md line 3 must be '## v$$NEW_VERSION', but found '$$CHANGELOG_LINE'"; \
-		exit 1; \
-	fi && \
-	$(MAKE) release-pr VERSION=$$NEW_VERSION
+	@$(MAKE) release-bump BUMP=major

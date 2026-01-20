@@ -3,6 +3,7 @@
 ## Critical Rules
 
 **Always update `CHANGELOG.md`** for any user-visible API or package experience change.
+- Keep the top changelog section as `## Unreleased`; `make release-*` replaces it with `## vX.Y.Z` when creating release PRs.
 
 **DO NOT USE** the following patterns in this codebase:
 - `typing.Optional` - Use `X | None` instead
