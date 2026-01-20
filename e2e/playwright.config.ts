@@ -1,4 +1,12 @@
+import * as fs from "fs";
+import * as os from "os";
+import * as path from "path";
+
 import { defineConfig, devices } from "@playwright/test";
+
+const e2eDataDir = fs.mkdtempSync(path.join(os.tmpdir(), "gren-e2e-"));
+process.env.GREN_PATH = e2eDataDir;
+process.env.GREN_E2E_DATA_DIR = e2eDataDir;
 
 /**
  * Playwright configuration for Gren Dashboard E2E tests.
@@ -38,13 +46,21 @@ export default defineConfig({
   /* Global setup: Generate test data before running tests */
   globalSetup: "./global-setup.ts",
 
+  /* Global teardown: Cleanup temp e2e data */
+  globalTeardown: "./global-teardown.ts",
+
   /* Run the dashboard server before starting the tests */
   webServer: {
     command: "cd .. && uv run python -m gren.dashboard serve --port 8000",
     url: "http://localhost:8000/api/health",
-    reuseExistingServer: !process.env.CI,
+    reuseExistingServer: false,
     timeout: 30000,
     stdout: "pipe",
     stderr: "pipe",
+    env: {
+      ...process.env,
+      GREN_PATH: e2eDataDir,
+      GREN_E2E_DATA_DIR: e2eDataDir,
+    },
   },
 });

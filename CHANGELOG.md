@@ -7,6 +7,7 @@
 - Update dashboard views/filters to surface migration tags, alias/original navigation, and original-view deduping.
 - Refresh dashboard fixtures/e2e coverage for migration navigation and counts.
 - Ignore private fields when hashing migration configs and experiment objects.
+- Run dashboard e2e tests against a fresh temp data root per run and clean it up afterward.
 
 ## v0.2.0
 - Add `GREN_CACHE_METADATA` for time-based git info caching. Accepts `never`, `forever`, or duration like `5m`, `1h`. Default: `5m`.

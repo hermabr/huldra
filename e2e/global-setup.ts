@@ -3,50 +3,35 @@
  *
  * This script runs before all tests to generate test data using the
  * Python data generation script. It creates realistic Gren experiments
- * with various states and dependencies.
- *
- * For faster iteration, data is only regenerated if:
- * - The data directory doesn't exist
- * - The REGENERATE_DATA env var is set
- * - Running in CI
+ * with various states and dependencies in a temporary data directory.
  */
 
 import { execSync } from "child_process";
-import * as fs from "fs";
 import * as path from "path";
 
 async function globalSetup() {
   const projectRoot = path.resolve(__dirname, "..");
   const e2eDir = __dirname;
-  const dataDir = path.join(projectRoot, "data-gren");
+  const dataDir = process.env.GREN_E2E_DATA_DIR ?? process.env.GREN_PATH;
 
-  // Check if we should regenerate data
-  const forceRegenerate = process.env.REGENERATE_DATA === "1" || process.env.CI;
-  const dataExists = fs.existsSync(dataDir);
-
-  if (dataExists && !forceRegenerate) {
-    console.log("✅ Using existing test data (set REGENERATE_DATA=1 to force regeneration)");
-    return;
+  if (!dataDir) {
+    throw new Error("GREN_E2E_DATA_DIR must be set for e2e tests");
   }
 
-  console.log("🔧 Generating test data for e2e tests...");
+  console.log(`🔧 Generating test data for e2e tests in ${dataDir}...`);
 
-  try {
-    // Run the data generation script with --clean to ensure fresh data
-    execSync(`uv run python ${path.join(e2eDir, "generate_data.py")} --clean`, {
+  execSync(
+    `uv run python ${path.join(e2eDir, "generate_data.py")} --data-dir ${dataDir}`,
+    {
       cwd: projectRoot,
       stdio: "inherit",
       env: {
         ...process.env,
-        // Ensure we use the project's data-gren directory
         GREN_PATH: dataDir,
       },
-    });
-    console.log("✅ Test data generated successfully");
-  } catch (error) {
-    console.error("❌ Failed to generate test data:", error);
-    throw error;
-  }
+    }
+  );
+  console.log("✅ Test data generated successfully");
 }
 
 export default globalSetup;
