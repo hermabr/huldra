@@ -264,6 +264,33 @@ def test_migrate_alias_force_recompute_detaches(gren_tmp_root, monkeypatch) -> N
     assert original_events[0].get("reason") == "force_recompute"
 
 
+def test_migrate_alias_of_alias_is_skipped(gren_tmp_root) -> None:
+    from_obj = RenamedSource(value=2)
+    to_obj = RenamedTarget(value=2)
+
+    assert from_obj.load_or_create() == 2
+
+    gren.migrate(from_obj, to_obj, policy="alias", origin="tests")
+
+    candidates = gren.find_migration_candidates(
+        namespace=gren.NamespacePair(
+            from_namespace="test_migrations.RenamedSource",
+            to_namespace="test_migrations.RenamedTarget",
+        ),
+    )
+    assert len(candidates) == 1
+
+    results = gren.apply_migration(
+        candidates[0],
+        policy="alias",
+        origin="tests",
+        note="alias-of-alias",
+        conflict="skip",
+    )
+    assert len(results) == 1
+    assert isinstance(results[0], gren.MigrationSkip)
+
+
 def test_migrate_alias_for_rename(gren_tmp_root) -> None:
     from_obj = RenamedSource(value=10)
     to_obj = RenamedTarget(value=10)
