@@ -22,6 +22,8 @@
 - [ ] Add terminal dashboard (tui)
 - [ ] Don't allow `<locals>` in `__qualname__` if not providing env flag
 - [ ] Verify that all tests including e2e and dashboard tests are using tmp directory for gren root data dir
+- [ ] The mask dashboard-dev should populate dummy data
+- [ ] Better and more complex filtering
 
 ## Code Quality
 
