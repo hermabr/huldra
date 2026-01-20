@@ -1,8 +1,8 @@
 import { useMemo, useState } from "react";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import {
-  useGetExperimentApiExperimentsNamespaceGrenHashGet,
-  useGetExperimentRelationshipsRouteApiExperimentsNamespaceGrenHashRelationshipsGet,
+  useGetExperimentApiExperimentsNamespaceFuruHashGet,
+  useGetExperimentRelationshipsRouteApiExperimentsNamespaceFuruHashRelationshipsGet,
 } from "../api/endpoints/api/api";
 import type {
   ChildExperiment,
@@ -12,7 +12,7 @@ import { StatusBadge } from "../components/StatusBadge";
 import { Button } from "../components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "../components/ui/card";
 
-// Type for serialized gren_obj values
+// Type for serialized furu_obj values
 type ConfigValue =
   | string
   | number
@@ -21,7 +21,7 @@ type ConfigValue =
   | ConfigValue[]
   | { [key: string]: ConfigValue };
 
-interface GrenObj {
+interface FuruObj {
   __class__?: string;
   [key: string]: ConfigValue | undefined;
 }
@@ -36,7 +36,7 @@ function MetadataSection({ metadata }: { metadata: Record<string, unknown> }) {
   const gitBranch = getString("git_branch");
   const hostname = getString("hostname");
   const user = getString("user");
-  const pythonDef = getString("gren_python_def");
+  const pythonDef = getString("furu_python_def");
 
   return (
     <Card className="mb-6">
@@ -190,17 +190,17 @@ function CollapsibleConfigSection({
  * Displays the experiment configuration with collapsible sections
  */
 function ConfigSection({
-  grenObj,
+  furuObj,
   parents,
 }: {
-  grenObj: GrenObj;
+  furuObj: FuruObj;
   parents?: ParentExperiment[];
 }) {
-  // Separate regular config fields from nested Gren objects (dependencies)
+  // Separate regular config fields from nested Furu objects (dependencies)
   const configFields: [string, ConfigValue][] = [];
-  const dependencyFields: [string, GrenObj][] = [];
+  const dependencyFields: [string, FuruObj][] = [];
 
-  for (const [key, value] of Object.entries(grenObj)) {
+  for (const [key, value] of Object.entries(furuObj)) {
     if (key === "__class__") continue;
 
     if (
@@ -209,7 +209,7 @@ function ConfigSection({
       !Array.isArray(value) &&
       "__class__" in value
     ) {
-      dependencyFields.push([key, value as GrenObj]);
+      dependencyFields.push([key, value as FuruObj]);
     } else {
       configFields.push([key, value as ConfigValue]);
     }
@@ -262,7 +262,7 @@ function ConfigSection({
             <div className="space-y-3">
               {dependencyFields.map(([fieldName, depObj]) => {
                 const parent = parentByField.get(fieldName);
-                const isClickable = parent?.namespace && parent?.gren_hash;
+                const isClickable = parent?.namespace && parent?.furu_hash;
 
                 return (
                   <div
@@ -277,10 +277,10 @@ function ConfigSection({
                         <span className="text-muted-foreground mx-1">:</span>
                         {isClickable ? (
                           <Link
-                            to="/experiments/$namespace/$gren_hash"
+                            to="/experiments/$namespace/$furu_hash"
                             params={{
                               namespace: parent.namespace!,
-                              gren_hash: parent.gren_hash!,
+                              furu_hash: parent.furu_hash!,
                             }}
                             className="text-cyan-400 hover:underline"
                           >
@@ -351,18 +351,18 @@ function ParentsSection({ parents }: { parents: ParentExperiment[] }) {
                 )}
               </div>
 
-              {parent.namespace && parent.gren_hash ? (
+              {parent.namespace && parent.furu_hash ? (
                 <Link
-                  to="/experiments/$namespace/$gren_hash"
+                  to="/experiments/$namespace/$furu_hash"
                   params={{
                     namespace: parent.namespace,
-                    gren_hash: parent.gren_hash,
+                    furu_hash: parent.furu_hash,
                   }}
                   className="text-sm text-primary hover:underline flex items-center gap-1"
                 >
                   <span>View experiment</span>
                   <span className="text-muted-foreground font-mono text-xs">
-                    ({parent.gren_hash.slice(0, 8)}...)
+                    ({parent.furu_hash.slice(0, 8)}...)
                   </span>
                 </Link>
               ) : (
@@ -412,16 +412,16 @@ function ChildrenSection({ children }: { children: ChildExperiment[] }) {
         <div className="space-y-2">
           {children.map((child, index) => (
             <div
-              key={`${child.namespace}-${child.gren_hash}-${index}`}
+              key={`${child.namespace}-${child.furu_hash}-${index}`}
               className="border rounded-lg p-3 flex items-center justify-between"
             >
               <div className="flex items-center gap-3">
                 <div>
                   <Link
-                    to="/experiments/$namespace/$gren_hash"
+                    to="/experiments/$namespace/$furu_hash"
                     params={{
                       namespace: child.namespace,
-                      gren_hash: child.gren_hash,
+                      furu_hash: child.furu_hash,
                     }}
                     className="text-primary hover:underline font-medium"
                   >
@@ -435,7 +435,7 @@ function ChildrenSection({ children }: { children: ChildExperiment[] }) {
               </div>
               <div className="flex items-center gap-2">
                 <code className="text-xs text-muted-foreground font-mono">
-                  {child.gren_hash.slice(0, 8)}...
+                  {child.furu_hash.slice(0, 8)}...
                 </code>
                 <StatusBadge status={child.result_status} type="result" />
               </div>
@@ -447,27 +447,27 @@ function ChildrenSection({ children }: { children: ChildExperiment[] }) {
   );
 }
 
-export const Route = createFileRoute("/experiments_/$namespace/$gren_hash")({
+export const Route = createFileRoute("/experiments_/$namespace/$furu_hash")({
   component: ExperimentDetailPage,
 });
 
 function ExperimentDetailPage() {
-  const { namespace, gren_hash } = Route.useParams();
+  const { namespace, furu_hash } = Route.useParams();
   const [viewMode, setViewMode] = useState("resolved");
   const {
     data: experiment,
     isLoading,
     error,
-  } = useGetExperimentApiExperimentsNamespaceGrenHashGet(
+  } = useGetExperimentApiExperimentsNamespaceFuruHashGet(
     namespace,
-    gren_hash,
+    furu_hash,
     { view: viewMode }
   );
 
   const { data: relationships } =
-    useGetExperimentRelationshipsRouteApiExperimentsNamespaceGrenHashRelationshipsGet(
+    useGetExperimentRelationshipsRouteApiExperimentsNamespaceFuruHashRelationshipsGet(
       namespace,
-      gren_hash,
+      furu_hash,
       { view: viewMode }
     );
 
@@ -476,13 +476,13 @@ function ExperimentDetailPage() {
     if (experiment?.original_namespace && experiment?.original_hash) {
       return {
         namespace: experiment.original_namespace,
-        gren_hash: experiment.original_hash,
+        furu_hash: experiment.original_hash,
       };
     }
     if (experiment?.from_namespace && experiment?.from_hash) {
       return {
         namespace: experiment.from_namespace,
-        gren_hash: experiment.from_hash,
+        furu_hash: experiment.from_hash,
       };
     }
     return null;
@@ -499,7 +499,7 @@ function ExperimentDetailPage() {
     }
     return experiment.alias_namespaces.map((aliasNamespace, index) => ({
       namespace: aliasNamespace,
-      gren_hash: experiment.alias_hashes?.[index] ?? "",
+      furu_hash: experiment.alias_hashes?.[index] ?? "",
     }));
   }, [experiment?.alias_namespaces, experiment?.alias_hashes]);
 
@@ -532,12 +532,12 @@ function ExperimentDetailPage() {
     );
   }
 
-  // Extract gren_obj from metadata for config display
-  const grenObj =
+  // Extract furu_obj from metadata for config display
+  const furuObj =
     experiment.metadata &&
     typeof experiment.metadata === "object" &&
-    "gren_obj" in experiment.metadata
-      ? (experiment.metadata.gren_obj as GrenObj)
+    "furu_obj" in experiment.metadata
+      ? (experiment.metadata.furu_obj as FuruObj)
       : null;
 
   return (
@@ -611,7 +611,7 @@ function ExperimentDetailPage() {
               {originalLink ? (
                 <Button asChild size="sm" variant="ghost">
                   <Link
-                    to="/experiments/$namespace/$gren_hash"
+                    to="/experiments/$namespace/$furu_hash"
                     params={originalLink}
                   >
                     View original
@@ -633,13 +633,13 @@ function ExperimentDetailPage() {
               <div className="flex flex-wrap gap-2">
                 {aliasLinks.map((aliasLink) => (
                   <Button
-                    key={aliasLink.gren_hash}
+                    key={aliasLink.furu_hash}
                     asChild
                     size="sm"
                     variant="ghost"
                   >
                     <Link
-                      to="/experiments/$namespace/$gren_hash"
+                      to="/experiments/$namespace/$furu_hash"
                       params={aliasLink}
                       aria-label="View alias"
                     >
@@ -653,7 +653,7 @@ function ExperimentDetailPage() {
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
             <div>
               <span className="text-muted-foreground block">Hash</span>
-              <code className="font-mono">{experiment.gren_hash}</code>
+              <code className="font-mono">{experiment.furu_hash}</code>
             </div>
             <div>
               <span className="text-muted-foreground block">Attempt #</span>
@@ -680,8 +680,8 @@ function ExperimentDetailPage() {
       </Card>
 
       {/* Configuration Section */}
-      {grenObj && (
-        <ConfigSection grenObj={grenObj} parents={relationships?.parents} />
+      {furuObj && (
+        <ConfigSection furuObj={furuObj} parents={relationships?.parents} />
       )}
 
       {/* Parent Experiments */}
