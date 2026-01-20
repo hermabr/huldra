@@ -667,8 +667,9 @@ def _build_candidate(
         )
 
     existing_fields = set(config.keys()) - {"__class__"}
+    remaining_fields = existing_fields - set(fields_dropped)
     if default_values_map:
-        conflicts = set(default_values_map) & existing_fields
+        conflicts = set(default_values_map) & remaining_fields
         if conflicts:
             raise ValueError(
                 f"migration: default_values provided for existing fields: {_format_fields(conflicts)}"
@@ -680,7 +681,7 @@ def _build_candidate(
             )
 
     if default_fields_list:
-        conflicts = set(default_fields_list) & existing_fields
+        conflicts = set(default_fields_list) & remaining_fields
         if conflicts:
             raise ValueError(
                 f"migration: default_fields provided for existing fields: {_format_fields(conflicts)}"

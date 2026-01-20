@@ -320,6 +320,13 @@ Add tests for:
 7) get_state is alias-aware for target dir
 8) Same-class migrations adding required fields with explicit defaults
 9) Same-class migrations adding optional fields via class defaults
+10) default_fields/default_values overlap error
+11) default_values wrong type error
+12) drop_fields unknown field error
+13) drop_fields + default_values on same field error
+14) no candidates returns empty list
+15) cascade behavior when migrating parent then dependency
+16) cascade behavior when migrating dependency then parent
 
 ## Examples
 
