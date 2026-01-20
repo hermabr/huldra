@@ -1,29 +1,17 @@
 # TODO
 
-## Completed
-
-- [x] Add support for building to wheel
-
 ## General
 
-- [ ] make good nested documentation/skills for how to use furu
-    - [ ] example pipeline and best practices, such as subclassing, bumping version etc
-    - [ ] how to use the dashboard
-    - [ ] low level design for furu and how it works
-    - [ ] what functionality/api do you have when using furu
 - [ ] support doing time machine to go back to the state at the time an artifact was created
-- [ ] check how to make implicit dependencies (probably this is doable with chz?)
 - [x] add a flag which makes one item always rerun, such as FURU_ALWAYS_RERUN="mypkg.my_file.MyObject"
-- [ ] Add support for lazily computing dependencies (maybe)
 - [ ] Change the version controlled flow so that it is always saved in the current folder at the same level as the pyproject.toml if that exists and in .gitignore if that exists and if not it throws. This should happen even if the general furu directory is somewhere else. It should save it to something like furu-data/artifacts or a better similar name. It should be possible to override this with an env variable.
 - [ ] When waiting, say how long you will be waiting and how long since file was touched
 - [ ] Sometimes it gets stuck in waiting for compute lock forever
-- [ ] Rename to furu
-- [ ] Add terminal dashboard (tui)
-- [ ] Don't allow `<locals>` in `__qualname__` if not providing env flag
-- [ ] Verify that all tests including e2e and dashboard tests are using tmp directory for furu root data dir
-- [ ] The mask dashboard-dev should populate dummy data
-- [ ] Better and more complex filtering
+- [x] Rename to furu
+- [x] Don't allow `<locals>` in `__qualname__` if not providing env flag
+- [x] Verify that all tests including e2e and dashboard tests are using tmp directory for furu root data dir
+- [x] make dashboard-dev should populate dummy data
+- [ ] Better and more complex filtering, maybe inspired by wandb etc
 
 ## Code Quality
 
@@ -43,11 +31,12 @@
 - [ ] Orphan detection - Find artifacts no longer referenced by code
 - [ ] Cache miss explanation - "This will recompute because field X changed"
 - [ ] Hash diff tool - Show which fields differ between two experiments
-- [ ] Have a def _dependencies(self) -> list[type[Furu]] which returns all the dependencies of the experiment that i don't want to define as fields
+- [ ] check how to make implicit dependencies (probably this is doable with chz?)
+    - [ ] Add support for lazily computing dependencies (maybe)
+    - [ ] Have a def _dependencies(self) -> list[type[Furu]] which returns all the dependencies of the experiment that i don't want to define as fields
 
 ## Execution & Compute
 
-- [ ] Dry-run mode (`FURU_DRY_RUN`) - Preview what would be computed without running
 - [x] Always rerun flag (`FURU_ALWAYS_RERUN`) - Recompute even if artifact exists
 - [ ] Checkpointing - Resume long-running computations from checkpoints
 - [ ] Resource tracking - Track peak memory, CPU time, GPU usage during `_create()`
@@ -104,14 +93,7 @@
 - [ ] Named experiments (either with _name in furu or rename in the web ui and update the metadata)
 - [ ] Tags for experiments. Each experiment can have multiple tags
 - [ ] Nice UI/UX for selecting experiments (maybe using either something from SQL or some sort of code for selecting?)
-
-### API (Missing Endpoints)
-
-- [ ] `GET /api/experiments/{id}/logs` - Return log file contents
-- [ ] `GET /api/experiments/{id}/artifacts` - List files in artifact directory
-- [ ] `DELETE /api/experiments/{id}` - Delete an experiment
-- [ ] `POST /api/experiments/{id}/invalidate` - Invalidate a cached result
-- [ ] `GET /api/namespaces` - List all unique namespaces for filtering
+- [ ] Add terminal dashboard (tui)
 
 ## Documentation
 
@@ -119,12 +101,17 @@
 - [ ] Tutorial/quickstart guide - Beyond the examples
 - [ ] Architecture overview - How the pieces fit together
 - [ ] Changelog - Track breaking changes
+- [ ] make good nested documentation/skills for how to use furu
+    - [ ] example pipeline and best practices, such as subclassing, bumping version etc
+    - [ ] how to use the dashboard
+    - [ ] low level design for furu and how it works
+    - [ ] what functionality/api do you have when using furu
 
 ## Build & Packaging
 
-- [ ] Explore if I the dashboard feature can be added in a different way, so that type checking works correctly for the main furu package, so that the normal package cannot use packages only available in the dashboard
-- [ ] Consider moving from hatchling to uv-build
-- [ ] Add CI workflow to run tests on every push/PR
+- [x] Consider moving from hatchling to uv-build
+- [x] Add CI workflow to run tests on every push/PR
+- [x] Add support for building to wheel
 
 ## Research & Investigation
 
