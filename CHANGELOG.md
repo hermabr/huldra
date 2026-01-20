@@ -1,22 +1,12 @@
 # Changelog
 
 ## v1.0.0
-- Show alias links for original experiments and enable original view for moved/copied records.
-- Update dashboard filtering tests for moved migration fixtures and status counts.
-- Add explicit migration alias tracking with overwrite logging and dashboard views for aliased vs original experiments.
-- Tighten initialized-target migration candidate filtering to avoid mismatched configs.
-- Update migration tests for initialized-target matching and explicit defaults.
-- Allow migration record parsing to ignore old version fields in persisted metadata.
-- Revalidate defaults applied post-candidate and make exists() alias-aware.
-- Record moved/copied migration kinds and dedupe original-view aliases in the dashboard.
-- Mark moved sources as migrated and add same-class field-addition migration tests.
-- Update state migration handling to store migrated status in state.json and keep migration metadata in migration.json.
-- Add migration regression tests for rename/added-field alias cases plus recompute detach events.
-- Extend dashboard e2e fixtures/tests to cover migrated experiment tags and original/aliased navigation.
-- Ensure alias links are exposed in original experiment detail responses for UI navigation.
+- Add migration records for alias/move/copy with migrated state tracking, overwrite handling, and warnings on non-success migrations.
+- Expand migration candidate logic (defaults, drop fields, initialized targets) and regression tests for rename/field-add cases.
+- Make Gren runtime alias-aware for exists() and expose alias links/original status in experiment detail.
+- Update dashboard views/filters to surface migration tags, alias/original navigation, and original-view deduping.
+- Refresh dashboard fixtures/e2e coverage for migration navigation and counts.
 - Ignore private fields when hashing migration configs and experiment objects.
-- Warn when migrating experiments that are not in a success state.
-- Support migration default values for alias metadata (for adding fields with defaults).
 
 ## v0.2.0
 - Add `GREN_CACHE_METADATA` for time-based git info caching. Accepts `never`, `forever`, or duration like `5m`, `1h`. Default: `5m`.
