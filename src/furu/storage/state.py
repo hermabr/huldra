@@ -1008,6 +1008,35 @@ def compute_lock(
         FuruLockNotAcquired: If lock cannot be acquired (after waiting)
         FuruWaitTimeout: If max_wait_time_sec is exceeded
     """
+    def _format_wait_duration(seconds: float) -> str:
+        if seconds < 60.0:
+            return f"{seconds:.1f}s"
+        minutes = seconds / 60.0
+        if minutes < 60.0:
+            return f"{minutes:.1f}m"
+        hours = minutes / 60.0
+        if hours < 24.0:
+            return f"{hours:.1f}h"
+        days = hours / 24.0
+        return f"{days:.1f}d"
+
+    def _describe_wait(attempt: _StateAttempt, waited_sec: float) -> str:
+        label = "last heartbeat"
+        timestamp = attempt.heartbeat_at
+        if attempt.status == "queued":
+            label = "queued at"
+            timestamp = attempt.started_at
+        parsed = StateManager._parse_time(timestamp)
+        timestamp_info = timestamp
+        if parsed is not None:
+            age = (StateManager._utcnow() - parsed).total_seconds()
+            timestamp_info = f"{timestamp} ({_format_wait_duration(age)} ago)"
+        return (
+            "waited "
+            f"{_format_wait_duration(waited_sec)}, {label} {timestamp_info}, "
+            f"status {attempt.status}, backend {attempt.backend}"
+        )
+
     lock_path = StateManager.get_lock_path(directory, StateManager.COMPUTE_LOCK)
 
     lock_fd: int | None = None
@@ -1031,6 +1060,49 @@ def compute_lock(
 
         lock_fd = StateManager.try_lock(lock_path)
         if lock_fd is not None:
+            state = StateManager.read_state(directory)
+            if isinstance(state.result, _StateResultSuccess):
+                StateManager.release_lock(lock_fd, lock_path)
+                raise FuruLockNotAcquired(
+                    "Cannot acquire lock: experiment already succeeded"
+                )
+            if isinstance(state.result, _StateResultFailed):
+                StateManager.release_lock(lock_fd, lock_path)
+                raise FuruLockNotAcquired("Cannot acquire lock: experiment already failed")
+            attempt = state.attempt
+            if (
+                isinstance(attempt, (_StateAttemptQueued, _StateAttemptRunning))
+                and attempt.backend != backend
+            ):
+                StateManager.release_lock(lock_fd, lock_path)
+                lock_fd = None
+                if reconcile_fn is not None:
+                    reconcile_fn(directory)
+                    state = StateManager.read_state(directory)
+                if isinstance(state.result, _StateResultSuccess):
+                    raise FuruLockNotAcquired(
+                        "Cannot acquire lock: experiment already succeeded"
+                    )
+                if isinstance(state.result, _StateResultFailed):
+                    raise FuruLockNotAcquired(
+                        "Cannot acquire lock: experiment already failed"
+                    )
+                attempt = state.attempt
+                if not isinstance(attempt, (_StateAttemptQueued, _StateAttemptRunning)):
+                    continue
+                if attempt.backend == backend:
+                    continue
+                now = time.time()
+                if now >= next_wait_log_at:
+                    waited_sec = now - start_time
+                    logger.info(
+                        "compute_lock: waiting for lock creation %s (%s)",
+                        directory,
+                        _describe_wait(attempt, waited_sec),
+                    )
+                    next_wait_log_at = now + wait_log_every_sec
+                time.sleep(poll_interval_sec)
+                continue
             break
 
         # Lock held by someone else - reconcile and check state
@@ -1064,9 +1136,11 @@ def compute_lock(
         # Active attempt exists - wait for it
         now = time.time()
         if now >= next_wait_log_at:
+            waited_sec = now - start_time
             logger.info(
-                "compute_lock: waiting for lock %s",
+                "compute_lock: waiting for lock %s (%s)",
                 directory,
+                _describe_wait(attempt, waited_sec),
             )
             next_wait_log_at = now + wait_log_every_sec
         time.sleep(poll_interval_sec)

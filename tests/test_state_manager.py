@@ -436,6 +436,46 @@ def test_compute_lock_waits_for_active_attempt(furu_tmp_root, tmp_path) -> None:
     release_thread.join()
 
 
+def test_compute_lock_waits_for_queued_backend(furu_tmp_root, tmp_path) -> None:
+    """Test that compute_lock waits for queued attempts from other backends."""
+    directory = tmp_path / "obj"
+    directory.mkdir()
+
+    attempt_id = furu.StateManager.start_attempt_queued(
+        directory,
+        backend="submitit",
+        lease_duration_sec=60.0,
+        owner={"pid": 99999, "host": "other-host", "user": "other-user"},
+    )
+
+    def clear_attempt_later() -> None:
+        time.sleep(0.1)
+        furu.StateManager.finish_attempt_preempted(
+            directory,
+            attempt_id=attempt_id,
+            error={"type": "signal", "message": "signal:0"},
+        )
+
+    release_thread = threading.Thread(target=clear_attempt_later)
+    release_thread.start()
+
+    start = time.time()
+    with compute_lock(
+        directory,
+        backend="local",
+        lease_duration_sec=60.0,
+        heartbeat_interval_sec=10.0,
+        owner={"pid": 12345, "host": "test-host", "user": "test-user"},
+        max_wait_time_sec=5.0,
+        poll_interval_sec=0.02,
+    ) as ctx:
+        elapsed = time.time() - start
+        assert elapsed >= 0.05
+        assert ctx.attempt_id is not None
+
+    release_thread.join()
+
+
 def test_compute_lock_heartbeat_runs(furu_tmp_root, tmp_path) -> None:
     """Test that the heartbeat thread updates the lease while lock is held."""
     directory = tmp_path / "obj"
