@@ -4,7 +4,7 @@ from dataclasses import dataclass
 from typing import Callable, Generic, TypeVar
 
 from ..runtime.logging import get_logger
-from .serializer import DEFAULT_GREN_VERSION, JsonValue
+from .serializer import JsonValue
 
 
 _T = TypeVar("_T")
@@ -176,7 +176,7 @@ def _get_version(data: dict[str, JsonValue]) -> float:
     version_value = data.get("gren_version")
     if isinstance(version_value, (float, int)):
         return float(version_value)
-    return DEFAULT_GREN_VERSION
+    return 0.0
 
 
 def _apply_spec(

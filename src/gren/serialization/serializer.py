@@ -9,8 +9,6 @@ from pathlib import Path
 from typing import Any
 
 import chz
-from chz.field import Field
-from chz.util import MISSING as CHZ_MISSING, MISSING_TYPE
 
 from ..errors import _GrenMissing
 from pydantic import BaseModel as PydanticBaseModel
@@ -19,8 +17,6 @@ from pydantic import BaseModel as PydanticBaseModel
 # Type alias for JSON-serializable values. We use Any here because this serialization
 # library handles arbitrary user-defined objects that we cannot know at compile time.
 JsonValue = Any
-
-DEFAULT_GREN_VERSION = 1.0
 
 
 class GrenSerializer:
@@ -161,16 +157,6 @@ class GrenSerializer:
         return hashlib.blake2s(json_str.encode(), digest_size=10).hexdigest()
 
     @classmethod
-    def _is_default_value(cls, obj: object, field: Field) -> bool:
-        if not chz.is_chz(obj):
-            return False
-        if field._default is not CHZ_MISSING:
-            return field._default == getattr(obj, field.x_name)
-        if not isinstance(field._default_factory, MISSING_TYPE):
-            return field._default_factory() == getattr(obj, field.x_name)
-        return False
-
-    @classmethod
     def to_python(cls, obj: object, multiline: bool = True) -> str:
         """Convert object to Python code representation."""
 
@@ -185,8 +171,6 @@ class GrenSerializer:
                 cls_path = cls.get_classname(item)
                 fields = []
                 for name, field in chz.chz_fields(item).items():
-                    if name == "gren_version" and cls._is_default_value(item, field):
-                        continue
                     fields.append(
                         f"{name}={to_py_recursive(getattr(item, name), next_indent)}"
                     )

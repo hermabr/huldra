@@ -85,8 +85,6 @@ class Gren[T](ABC):
 
     MISSING = MISSING
 
-    gren_version: float = chz.field(default=1.0)
-
     # Configuration (can be overridden in subclasses)
     version_controlled: ClassVar[bool] = False
 
