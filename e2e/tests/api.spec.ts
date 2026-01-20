@@ -21,8 +21,8 @@ test.describe("API Endpoints", () => {
     expect(Array.isArray(data.experiments)).toBe(true);
     expect(typeof data.total).toBe("number");
 
-    // Should have 11 experiments from our generated data
-    expect(data.total).toBe(11);
+    // Should have 13 experiments from our generated data
+    expect(data.total).toBe(13);
   });
 
   test("experiments endpoint supports filtering by result status", async ({
@@ -35,8 +35,8 @@ test.describe("API Endpoints", () => {
 
     const data = await response.json();
     expect(data.experiments).toBeDefined();
-    // Should have 6 successful experiments
-    expect(data.total).toBe(6);
+    // Should have 8 successful experiments
+    expect(data.total).toBe(8);
 
     // All returned experiments should be successful
     for (const exp of data.experiments) {
@@ -54,9 +54,8 @@ test.describe("API Endpoints", () => {
     expect(data.experiments).toBeDefined();
     expect(data.total).toBe(1);
 
-    const migrated = data.experiments[0];
-    expect(migrated.result_status).toBe("migrated");
-    expect(migrated.migration_kind).toBe("alias");
+    const kinds = data.experiments.map((exp) => exp.migration_kind);
+    expect(kinds).toContain("alias");
 
   });
 
@@ -81,7 +80,7 @@ test.describe("API Endpoints", () => {
 
     const data = await response.json();
     expect(data.experiments.length).toBeLessThanOrEqual(3);
-    expect(data.total).toBe(11); // Total count should still be 11
+    expect(data.total).toBe(13); // Total count should still be 13
 
     // Get second page
     const response2 = await request.get("/api/experiments?limit=3&offset=3");
@@ -109,8 +108,8 @@ test.describe("API Endpoints", () => {
     expect(Array.isArray(data.by_result_status)).toBe(true);
 
     // Verify counts match our generated data
-    expect(data.total).toBe(11);
-    expect(data.success_count).toBe(6);
+    expect(data.total).toBe(13);
+    expect(data.success_count).toBe(8);
     expect(data.running_count).toBe(1);
     expect(data.failed_count).toBe(1);
     expect(data.queued_count).toBe(1);

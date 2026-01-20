@@ -204,6 +204,8 @@ def scan_experiments(
     updated_after: str | None = None,
     updated_before: str | None = None,
     config_filter: str | None = None,
+    migration_kind: str | None = None,
+    migration_policy: str | None = None,
     view: str = "resolved",
 ) -> list[ExperimentSummary]:
     """
@@ -326,6 +328,10 @@ def scan_experiments(
             if hostname and summary.hostname != hostname:
                 continue
             if user and summary.user != user:
+                continue
+            if migration_kind and summary.migration_kind != migration_kind:
+                continue
+            if migration_policy and summary.migration_policy != migration_policy:
                 continue
 
             # Date filters

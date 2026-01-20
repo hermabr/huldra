@@ -32,7 +32,7 @@ from gren.storage import MetadataManager, StateManager
 from my_project.pipelines import PrepareDataset, TrainModel, TrainTextModel  # type: ignore[import-not-found]
 
 
-def _create_migrated_alias() -> None:
+def _create_migrated_alias() -> PrepareDataset:
     dataset_old = PrepareDataset(name="mnist")
     dataset_old.load_or_create()
     candidates = gren.find_migration_candidates(
@@ -61,6 +61,7 @@ def _create_migrated_alias() -> None:
         note="migration fixture",
         conflict="throw",
     )
+    return dataset_old
 
 
 def create_mock_experiment(
@@ -167,8 +168,56 @@ def generate_test_data(data_root: Path) -> None:
     print(f"  Created: {dataset_mnist.__class__.__name__} (mnist)")
 
     # Migrated alias dataset (mnist -> mnist-v2)
-    _create_migrated_alias()
+    dataset_old = _create_migrated_alias()
     print("  Created: PrepareDataset alias (mnist-v2)")
+
+    candidates = gren.find_migration_candidates(
+        namespace=gren.NamespacePair(
+            from_namespace="my_project.pipelines.PrepareDataset",
+            to_namespace="my_project.pipelines.PrepareDataset",
+        ),
+        default_values={"name": "mnist-copy"},
+        drop_fields=["name"],
+    )
+    copy_candidates = [
+        candidate
+        for candidate in candidates
+        if candidate.from_ref.gren_hash == dataset_old._gren_hash
+    ]
+    if not copy_candidates:
+        raise ValueError("migration: no copy candidates found")
+    gren.apply_migration(
+        copy_candidates[0],
+        policy="copy",
+        cascade=True,
+        origin="e2e",
+        note="migration copy fixture",
+        conflict="throw",
+    )
+
+    move_candidates = gren.find_migration_candidates(
+        namespace=gren.NamespacePair(
+            from_namespace="my_project.pipelines.PrepareDataset",
+            to_namespace="my_project.pipelines.PrepareDataset",
+        ),
+        default_values={"name": "mnist-move"},
+        drop_fields=["name"],
+    )
+    move_candidates = [
+        candidate
+        for candidate in move_candidates
+        if candidate.from_ref.gren_hash == dataset_old._gren_hash
+    ]
+    if not move_candidates:
+        raise ValueError("migration: no move candidates found")
+    gren.apply_migration(
+        move_candidates[0],
+        policy="move",
+        cascade=True,
+        origin="e2e",
+        note="migration move fixture",
+        conflict="throw",
+    )
 
     # Training model on toy dataset
     train_toy = TrainModel(lr=0.001, steps=1000, dataset=dataset_toy)
@@ -219,8 +268,8 @@ def generate_test_data(data_root: Path) -> None:
     train_extra.load_or_create()
     print(f"  Created: {train_extra.__class__.__name__} (toy, lr=0.005)")
 
-    print("\nGenerated 11 experiments total")
-    print("  - 6 successful")
+    print("\nGenerated 13 experiments total")
+    print("  - 8 successful")
     print("  - 1 running")
     print("  - 1 failed")
     print("  - 1 queued")

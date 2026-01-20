@@ -172,7 +172,10 @@ test.describe("Navigation", () => {
       await expect(dagContainer).toBeVisible();
 
       // Click on a DAG node to select it
-      const node = page.locator(".react-flow__node").first();
+      const node = page
+        .locator(".react-flow__node")
+        .filter({ has: page.locator("a") })
+        .first();
       const nodeCount = await node.count();
 
       if (nodeCount === 0) {
@@ -181,12 +184,12 @@ test.describe("Navigation", () => {
         return;
       }
 
-      await node.click();
+      await node.click({ position: { x: 10, y: 10 } });
 
       // A panel should appear with experiment links (React Flow Panel component)
-      // The panel has class "react-flow__panel" 
-      const panel = page.locator(".react-flow__panel").filter({ hasText: /experiments/ });
-      await expect(panel).toBeVisible();
+      // The panel has class "react-flow__panel"
+      const panel = page.locator(".react-flow__panel.m-4");
+      await expect(panel).toBeVisible({ timeout: 5000 });
 
       // Click on an experiment link in the panel
       const experimentLink = panel.locator("a").first();

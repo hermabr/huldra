@@ -16,8 +16,8 @@ test.describe("Experiments Page", () => {
     await expect(page.getByPlaceholder("Filter by namespace...")).toBeVisible();
     await expect(page.getByRole("combobox").first()).toBeVisible();
 
-    // Should have 11 experiments from generate_data.py
-    await expect(page.getByText(/Showing \d+ of 11 experiments/)).toBeVisible();
+    // Should have 13 experiments from generate_data.py
+    await expect(page.getByText(/Showing \d+ of 13 experiments/)).toBeVisible();
 
     // Check that experiment cards display real class names
     const experimentClasses = ["PrepareDataset", "TrainModel", "TrainTextModel"];
@@ -42,8 +42,8 @@ test.describe("Experiments Page", () => {
     const resultStatusSelect = page.getByRole("combobox").first();
     await resultStatusSelect.selectOption("success");
 
-    // Should show 6 successful experiments
-    await expect(page.getByText(/Showing \d+ of 6 experiments/)).toBeVisible();
+    // Should show 8 successful experiments
+    await expect(page.getByText(/Showing \d+ of 8 experiments/)).toBeVisible();
   });
 
   test("should filter by namespace", async ({ page }) => {

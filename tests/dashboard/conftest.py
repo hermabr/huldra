@@ -36,7 +36,7 @@ from gren.storage import (
     MigrationRecord,
     StateManager,
 )
-from gren.storage.state import _StateResultMigrated
+from gren.storage.state import _StateResultMigrated, _StateResultSuccess
 
 from .pipelines import (
     DataLoader,
@@ -328,6 +328,43 @@ def _create_populated_experiments(root: Path) -> None:
         note="alias fixture",
     )
     MigrationManager.write_migration(alias_record, alias_dir)
+
+    # Add a moved dataset entry for filter tests
+    moved_dataset = PrepareDataset(name="mnist", version="v3")
+    moved_dir = moved_dataset.gren_dir
+    moved_dir.mkdir(parents=True, exist_ok=True)
+    MetadataManager.write_metadata(
+        MetadataManager.create_metadata(moved_dataset, moved_dir, ignore_diff=True),
+        moved_dir,
+    )
+    StateManager.update_state(moved_dir, set_alias_state)
+
+    def set_success(state) -> None:
+        state.result = _StateResultSuccess(
+            status="success", created_at="2025-01-06T10:00:00+00:00"
+        )
+        state.attempt = None
+
+    StateManager.update_state(
+        dataset2._base_gren_dir(),
+        set_success,
+    )
+    moved_record = MigrationRecord(
+        kind="moved",
+        policy="move",
+        from_namespace="dashboard.pipelines.PrepareDataset",
+        from_hash=GrenSerializer.compute_hash(dataset2),
+        from_root="data",
+        to_namespace="dashboard.pipelines.PrepareDataset",
+        to_hash=GrenSerializer.compute_hash(moved_dataset),
+        to_root="data",
+        migrated_at="2025-01-06T10:00:00+00:00",
+        overwritten_at=None,
+        default_values=None,
+        origin="tests",
+        note="move fixture",
+    )
+    MigrationManager.write_migration(moved_record, moved_dir)
 
 
 @pytest.fixture(scope="module")

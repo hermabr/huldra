@@ -1,6 +1,7 @@
 # Changelog
 
 ## v1.0.0
+- Update dashboard filtering tests for moved migration fixtures and status counts.
 - Add explicit migration alias tracking with overwrite logging and dashboard views for aliased vs original experiments.
 - Tighten initialized-target migration candidate filtering to avoid mismatched configs.
 - Update migration tests for initialized-target matching and explicit defaults.

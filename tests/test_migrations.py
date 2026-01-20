@@ -21,6 +21,17 @@ class MigrationDummy(gren.Gren[int]):
         return int((self.gren_dir / "value.txt").read_text())
 
 
+class GitDummy(gren.Gren[int], version_controlled=True):
+    value: int = gren.chz.field(default=0)
+
+    def _create(self) -> int:
+        (self.gren_dir / "value.txt").write_text(str(self.value))
+        return self.value
+
+    def _load(self) -> int:
+        return int((self.gren_dir / "value.txt").read_text())
+
+
 class RenamedSource(gren.Gren[int]):
     value: int = gren.chz.field(default=0)
 
@@ -480,6 +491,250 @@ def test_migrate_no_candidates_for_namespace(gren_tmp_root) -> None:
     assert candidates == []
 
 
+def test_migrate_invalid_namespace_type(gren_tmp_root) -> None:
+    with pytest.raises(
+        ValueError, match="migration: namespace must be str or NamespacePair"
+    ):
+        gren.find_migration_candidates(namespace=123)  # type: ignore[arg-type]
+
+
+def test_migrate_missing_to_obj_for_string_namespace(gren_tmp_root) -> None:
+    same_class_v2 = _same_class_v2_required()
+    with pytest.raises(ValueError, match="migration: to_obj must be a class"):
+        gren.find_migration_candidates(
+            namespace="test_migrations.SameClass",
+            to_obj=cast(
+                type[gren.Gren], same_class_v2(name="dummy", language="english")
+            ),
+        )
+
+
+def test_migrate_initialized_target_requires_instance(gren_tmp_root) -> None:
+    same_class_v2 = _same_class_v2_required()
+    with pytest.raises(ValueError, match="migration: to_obj must be an instance"):
+        gren.find_migration_candidates_initialized_target(  # type: ignore[arg-type, call-arg]
+            to_obj=cast(gren.Gren, same_class_v2),
+        )
+
+
+def test_migrate_initialized_target_rejects_non_gren(gren_tmp_root) -> None:
+    with pytest.raises(ValueError, match="migration: to_obj must be an instance"):
+        gren.find_migration_candidates_initialized_target(  # type: ignore[arg-type, call-arg]
+            to_obj=cast(gren.Gren, object()),
+        )
+
+
+def test_migrate_wrapper_rejects_invalid_defaults(gren_tmp_root) -> None:
+    same_class_v1 = _same_class_v1()
+    same_class_v2 = _same_class_v2_required()
+    from_obj = same_class_v1(name="dummy")
+    to_obj = same_class_v2(name="dummy", language="english")
+
+    assert from_obj.load_or_create() == 5
+
+    with pytest.raises(ValueError, match="missing required fields"):
+        gren.migrate(from_obj, to_obj, default_values={"unknown": "bad"})
+
+
+def test_migrate_git_root_records_git(gren_tmp_root) -> None:
+    from_obj = GitDummy(value=3)
+    to_obj = GitDummy(value=3)
+
+    assert from_obj.load_or_create() == 3
+    assert to_obj.load_or_create() == 3
+
+    candidates = gren.find_migration_candidates(
+        namespace=gren.NamespacePair(
+            from_namespace="test_migrations.GitDummy",
+            to_namespace="test_migrations.GitDummy",
+        ),
+    )
+    assert len(candidates) == 1
+
+    gren.apply_migration(
+        candidates[0],
+        policy="alias",
+        origin="tests",
+        note="git-root",
+        conflict="overwrite",
+    )
+
+    record = MigrationManager.read_migration(to_obj._base_gren_dir())
+    assert record is not None
+    assert record.from_root == "git"
+    assert record.to_root == "git"
+
+
+def test_migrate_conflict_skip_on_success(gren_tmp_root) -> None:
+    from_obj = RenamedSource(value=4)
+    to_obj = RenamedTarget(value=4)
+
+    assert from_obj.load_or_create() == 4
+    assert to_obj.load_or_create() == 4
+
+    candidates = gren.find_migration_candidates(
+        namespace=gren.NamespacePair(
+            from_namespace="test_migrations.RenamedSource",
+            to_namespace="test_migrations.RenamedTarget",
+        ),
+    )
+    assert len(candidates) == 1
+
+    results = gren.apply_migration(
+        candidates[0],
+        policy="alias",
+        origin="tests",
+        note="skip-success",
+        conflict="skip",
+    )
+    assert len(results) == 1
+    assert isinstance(results[0], gren.MigrationSkip)
+
+
+def test_migrate_conflict_overwrite_on_success(gren_tmp_root) -> None:
+    from_obj = RenamedSource(value=5)
+    to_obj = RenamedTarget(value=5)
+
+    assert from_obj.load_or_create() == 5
+    assert to_obj.load_or_create() == 5
+
+    candidates = gren.find_migration_candidates(
+        namespace=gren.NamespacePair(
+            from_namespace="test_migrations.RenamedSource",
+            to_namespace="test_migrations.RenamedTarget",
+        ),
+    )
+    assert len(candidates) == 1
+
+    results = gren.apply_migration(
+        candidates[0],
+        policy="alias",
+        origin="tests",
+        note="overwrite-success",
+        conflict="overwrite",
+    )
+    assert len(results) == 1
+    record = MigrationManager.read_migration(to_obj._base_gren_dir())
+    assert record is not None
+    assert results[0].kind == record.kind
+    assert results[0].overwritten_at is None
+
+    events = [
+        event
+        for event in _events_for(to_obj._base_gren_dir())
+        if event.get("type") == "migration_overwrite"
+    ]
+    assert len(events) == 1
+
+
+def test_migrate_conflict_skip_on_running(gren_tmp_root) -> None:
+    from_obj = RenamedSource(value=6)
+    to_obj = RenamedTarget(value=6)
+
+    assert from_obj.load_or_create() == 6
+
+    running_state = StateManager.read_state(to_obj._base_gren_dir())
+
+    def set_running(state) -> None:
+        state.result = running_state.result
+        state.attempt = {
+            "id": "attempt-running",
+            "number": 1,
+            "backend": "local",
+            "status": "running",
+            "started_at": "2025-01-01T00:00:00+00:00",
+            "heartbeat_at": "2025-01-01T00:10:00+00:00",
+            "lease_duration_sec": 120.0,
+            "lease_expires_at": "2025-01-01T00:12:00+00:00",
+            "owner": {"pid": 1, "host": "local", "user": "tester"},
+            "scheduler": {},
+        }
+
+    StateManager.update_state(to_obj._base_gren_dir(), set_running)
+
+    candidates = gren.find_migration_candidates(
+        namespace=gren.NamespacePair(
+            from_namespace="test_migrations.RenamedSource",
+            to_namespace="test_migrations.RenamedTarget",
+        ),
+    )
+    assert len(candidates) == 1
+
+    results = gren.apply_migration(
+        candidates[0],
+        policy="alias",
+        origin="tests",
+        note="skip-running",
+        conflict="skip",
+    )
+    assert len(results) == 1
+    assert isinstance(results[0], gren.MigrationSkip)
+
+
+class CascadeChild(gren.Gren[int]):
+    parent: RenamedSource | RenamedTarget
+
+    def _create(self) -> int:
+        path = self.parent.gren_dir / "value.txt"
+        value = int(path.read_text())
+        (self.gren_dir / "value.txt").write_text(str(value))
+        return value
+
+    def _load(self) -> int:
+        return int((self.gren_dir / "value.txt").read_text())
+
+
+def test_migrate_cascade_skip_conflicts(gren_tmp_root) -> None:
+    parent = RenamedSource(value=7)
+    child = CascadeChild(parent=parent)
+
+    assert parent.load_or_create() == 7
+    assert child.load_or_create() == 7
+
+    target_parent = RenamedTarget(value=7)
+    assert target_parent.load_or_create() == 7
+
+    exp_candidates = gren.find_migration_candidates(
+        namespace=gren.NamespacePair(
+            from_namespace="test_migrations.CascadeChild",
+            to_namespace="test_migrations.CascadeChild",
+        ),
+        drop_fields=["parent"],
+        default_values={"parent": target_parent},
+    )
+    assert len(exp_candidates) == 1
+
+    gren.apply_migration(
+        exp_candidates[0],
+        policy="alias",
+        cascade=False,
+        origin="tests",
+        note="parent-only",
+    )
+
+    target_child = CascadeChild(parent=target_parent)
+    assert target_child.load_or_create() == 7
+
+    candidates = gren.find_migration_candidates(
+        namespace=gren.NamespacePair(
+            from_namespace="test_migrations.RenamedSource",
+            to_namespace="test_migrations.RenamedTarget",
+        ),
+    )
+    assert len(candidates) == 1
+
+    results = gren.apply_migration(
+        candidates[0],
+        policy="alias",
+        cascade=True,
+        origin="tests",
+        note="cascade-skip",
+        conflict="skip",
+    )
+    assert len(results) == 2
+    assert all(isinstance(result, gren.MigrationSkip) for result in results)
+
+
 def test_migrate_cascade_updates_dependents(gren_tmp_root) -> None:
     data_obj = DataV1(value=3)
     exp_obj = ExperimentV1(data=data_obj)
@@ -542,6 +797,16 @@ def test_migrate_cascade_after_parent_migration(gren_tmp_root) -> None:
         default_values={"data": DataV2(value=7, language="english")},
     )
     assert len(exp_candidates) == 1
+
+    exp_candidates_repeat = gren.find_migration_candidates(
+        namespace=gren.NamespacePair(
+            from_namespace="test_migrations.ExperimentV1",
+            to_namespace="test_migrations.ExperimentV2",
+        ),
+        drop_fields=["data"],
+        default_values={"data": DataV2(value=7, language="english")},
+    )
+    assert len(exp_candidates_repeat) == 1
 
     gren.apply_migration(
         exp_candidates[0],

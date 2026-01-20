@@ -26,21 +26,32 @@ def test_scan_experiments_empty(temp_gren_root: Path) -> None:
 def test_scan_experiments_finds_all(populated_gren_root: Path) -> None:
     """Test that scanner finds all experiments."""
     experiments = scan_experiments()
-    # 7 experiments: dataset1, dataset2, train1, train2, eval1, loader, alias
-    assert len(experiments) == 7
+    # 8 experiments: dataset1, dataset2, train1, train2, eval1, loader, alias, moved
+    assert len(experiments) == 8
 
 
 def test_scan_experiments_filter_result_status(populated_gren_root: Path) -> None:
     """Test filtering by result status."""
     experiments = scan_experiments(result_status="success")
-    # 3 successful: dataset1, train1, loader
-    assert len(experiments) == 3
+    # 4 successful: dataset1, train1, loader, dataset2 (moved source)
+    assert len(experiments) == 4
     for exp in experiments:
         assert exp.result_status == "success"
 
     migrated = scan_experiments(result_status="migrated")
-    assert len(migrated) == 1
-    assert migrated[0].migration_kind == "alias"
+    assert len(migrated) == 2
+    assert {exp.migration_kind for exp in migrated} == {"alias", "moved"}
+
+    moved = scan_experiments(result_status="migrated", migration_kind="moved")
+    assert len(moved) == 1
+    assert moved[0].migration_kind == "moved"
+
+    alias_policy = scan_experiments(
+        result_status="migrated",
+        migration_policy="alias",
+    )
+    assert len(alias_policy) == 1
+    assert alias_policy[0].migration_policy == "alias"
 
 
 def test_scan_experiments_applies_migration_defaults(
@@ -64,13 +75,13 @@ def test_scan_experiments_filter_attempt_status(populated_gren_root: Path) -> No
 def test_scan_experiments_filter_namespace(populated_gren_root: Path) -> None:
     """Test filtering by namespace prefix."""
     experiments = scan_experiments(namespace_prefix="dashboard.pipelines")
-    # All 7 experiments are in dashboard.pipelines
-    assert len(experiments) == 7
+    # All 8 experiments are in dashboard.pipelines
+    assert len(experiments) == 8
     for exp in experiments:
         assert exp.namespace.startswith("dashboard.pipelines")
 
     original = scan_experiments(namespace_prefix="dashboard.pipelines", view="original")
-    assert len(original) == 6
+    assert len(original) == 7
 
 
 def test_scan_experiments_sorted_by_updated_at(temp_gren_root: Path) -> None:
@@ -163,20 +174,21 @@ def test_get_stats_empty(temp_gren_root: Path) -> None:
 def test_get_stats_counts(populated_gren_root: Path) -> None:
     """Test that stats correctly count experiments."""
     stats = get_stats()
-    # 7 total: dataset1(success), train1(success), train2(running),
-    #          eval1(failed), loader(success), dataset2(absent), alias(migrated)
-    assert stats.total == 7
-    assert stats.success_count == 3
+    # 8 total: dataset1(success), train1(success), train2(running),
+    #          eval1(failed), loader(success), dataset2(success moved source),
+    #          alias(migrated), moved(migrated)
+    assert stats.total == 8
+    assert stats.success_count == 4
     assert stats.failed_count == 1
     assert stats.running_count == 1
 
     # Check by_result_status
     result_map = {s.status: s.count for s in stats.by_result_status}
-    assert result_map["success"] == 3
+    assert result_map["success"] == 4
     assert result_map["failed"] == 1
     assert result_map["incomplete"] == 1
-    assert result_map["absent"] == 1
-    assert result_map["migrated"] == 1
+    assert result_map.get("absent", 0) == 0
+    assert result_map["migrated"] == 2
 
 
 def test_scan_experiments_version_controlled(temp_gren_root: Path) -> None:
@@ -360,9 +372,9 @@ def test_scan_experiments_filter_by_updated_after(populated_gren_root: Path) -> 
     # Fixture has: loader(updated 2024-06-01), dataset1(2025-01-01), train1(2025-01-02),
     #              train2(2025-01-03), eval1(2025-01-04), dataset2(no attempt with default date)
 
-    # Filter by updated_after 2025-01-02 should get train1, train2, eval1
+    # Filter by updated_after 2025-01-02 should get train1, train2, eval1, alias, moved
     results = scan_experiments(updated_after="2025-01-02T00:00:00+00:00")
-    assert len(results) == 3  # train1, train2, eval1
+    assert len(results) == 5  # train1, train2, eval1, alias, moved
     for exp in results:
         assert exp.updated_at is not None
         assert exp.updated_at >= "2025-01-02T00:00:00+00:00"
@@ -461,8 +473,9 @@ def test_scan_experiments_combined_filters(populated_gren_root: Path) -> None:
     # - train2: running, submitit, gpu-02, bob, 2025-01-03
     # - eval1: failed, local, gpu-02, alice, 2025-01-04
     # - loader: success, submitit, gpu-01, bob, 2024-06-01
-    # - dataset2: absent, no attempt
+    # - dataset2: success (moved source)
     # - alias: migrated (resolves to dataset1)
+    # - moved: migrated (points to dataset2)
 
     # Combine result_status + user: success + alice = dataset1, train1
     results = scan_experiments(result_status="success", user="alice")
@@ -650,10 +663,10 @@ def test_get_experiment_dag_populated(populated_gren_root: Path) -> None:
     """Test DAG with the populated fixture data."""
     dag = get_experiment_dag()
 
-    # Fixture has: PrepareDataset (2), TrainModel (2), EvalModel (1), DataLoader (1)
+    # Fixture has: PrepareDataset (3), TrainModel (2), EvalModel (1), DataLoader (1)
     # Classes: PrepareDataset, TrainModel, EvalModel, DataLoader = 4 nodes
     assert dag.total_nodes == 4
-    assert dag.total_experiments == 6
+    assert dag.total_experiments == 7
 
     # Check node counts
     node_by_class = {n.class_name: n for n in dag.nodes}
@@ -662,8 +675,8 @@ def test_get_experiment_dag_populated(populated_gren_root: Path) -> None:
     assert "EvalModel" in node_by_class
     assert "DataLoader" in node_by_class
 
-    # PrepareDataset has 2 experiments
-    assert node_by_class["PrepareDataset"].total_count == 2
+    # PrepareDataset has 3 experiments
+    assert node_by_class["PrepareDataset"].total_count == 3
     # TrainModel has 2 experiments
     assert node_by_class["TrainModel"].total_count == 2
     # EvalModel has 1 experiment

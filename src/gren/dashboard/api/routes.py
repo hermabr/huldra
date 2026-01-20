@@ -53,6 +53,10 @@ async def list_experiments(
     config_filter: str | None = Query(
         None, description="Filter by config field (format: field.path=value)"
     ),
+    migration_kind: str | None = Query(None, description="Filter by migration kind"),
+    migration_policy: str | None = Query(
+        None, description="Filter by migration policy"
+    ),
     view: str = Query("resolved", description="View mode: resolved or original"),
     limit: int = Query(100, ge=1, le=1000, description="Maximum number of results"),
     offset: int = Query(0, ge=0, description="Offset for pagination"),
@@ -70,6 +74,8 @@ async def list_experiments(
         updated_after=updated_after,
         updated_before=updated_before,
         config_filter=config_filter,
+        migration_kind=migration_kind,
+        migration_policy=migration_policy,
         view=view,
     )
 
