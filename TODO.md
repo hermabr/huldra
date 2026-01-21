@@ -5,8 +5,8 @@
 - [ ] support doing time machine to go back to the state at the time an artifact was created
 - [x] add a flag which makes one item always rerun, such as FURU_ALWAYS_RERUN="mypkg.my_file.MyObject"
 - [ ] Change the version controlled flow so that it is always saved in the current folder at the same level as the pyproject.toml if that exists and in .gitignore if that exists and if not it throws. This should happen even if the general furu directory is somewhere else. It should save it to something like furu-data/artifacts or a better similar name. It should be possible to override this with an env variable.
-- [ ] When waiting, say how long you will be waiting and how long since file was touched
-- [ ] Sometimes it gets stuck in waiting for compute lock forever
+- [x] When waiting, say how long you will be waiting and how long since file was touched
+- [?] Sometimes it gets stuck in waiting for compute lock forever
 - [x] Rename to furu
 - [x] Don't allow `<locals>` in `__qualname__` if not providing env flag
 - [x] Verify that all tests including e2e and dashboard tests are using tmp directory for furu root data dir
@@ -38,18 +38,22 @@
 ## Execution & Compute
 
 - [x] Always rerun flag (`FURU_ALWAYS_RERUN`) - Recompute even if artifact exists
-- [ ] Checkpointing - Resume long-running computations from checkpoints
 - [ ] Resource tracking - Track peak memory, CPU time, GPU usage during `_create()`
+- [ ] Checkpointing - Resume long-running computations from checkpoints
+
+### Submitit
+
+- [ ] Checkpointing - Resume long-running computations from checkpoints for slurm jobs
 
 ## Dashboard Features
 
 ### Experiment Management
 
 - [ ] Migration helper / show stale runs that are no longer valid
-    - [ ] Support migrations in the backend
+    - [x] Support migrations in the backend
+    - [x] Migrate only one experiment
     - [ ] Migrate all to the new default value
     - [ ] Migrate all to a value you set
-    - [ ] Migrate only one experiment
     - [ ] Migrate based on a filter
 - [ ] Create new experiments with different hyperparameters from the UI and get code snippet
 - [ ] Support parameter sweeps
@@ -82,7 +86,7 @@
 - [x] Use shadcn
 - [ ] Use polars filtering for selecting experiments (there probably exists something better than polars)
 - [ ] Support making graphs/charts given a result file such as a json or parquet file (decide: Python vs React)
-- [ ] Explore: discover all available runs/experiments in code (or via JSON manifest for reproducibility dashboard)
+- [x] Explore: discover all available runs/experiments in code (or via JSON manifest for reproducibility dashboard)
 - [ ] Show all output files of an experiment
 - [ ] Config diff view - Compare two experiments side-by-side
 - [ ] Copy buttons - Copy hash, Python snippet, directory path to clipboard
@@ -93,7 +97,7 @@
 - [ ] Named experiments (either with _name in furu or rename in the web ui and update the metadata)
 - [ ] Tags for experiments. Each experiment can have multiple tags
 - [ ] Nice UI/UX for selecting experiments (maybe using either something from SQL or some sort of code for selecting?)
-- [ ] Add terminal dashboard (tui)
+- [ ] Add terminal dashboard (tui) using opentui
 
 ## Documentation
 
