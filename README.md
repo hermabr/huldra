@@ -114,30 +114,25 @@ class TrainTextModel(furu.Furu[str]):
 
 ### Storage Structure
 
-By default, Furu stores data under `<project-root>/furu-data`, where `<project-root>`
-is the nearest directory containing `pyproject.toml` (falling back to the git root).
-Override with `FURU_PATH` and `FURU_VERSION_CONTROLLED_PATH` as needed. If you
-override `FURU_PATH`, `furu-data/data` and `furu-data/raw` move to that location,
-while `furu-data/artifacts` stays at the project root unless you also override
-`FURU_VERSION_CONTROLLED_PATH`.
+Furu uses two roots: `FURU_PATH` for `data/` + `raw/`, and
+`FURU_VERSION_CONTROLLED_PATH` for `artifacts/`. Defaults:
 
 ```
-<project-root>/
-├── pyproject.toml
-├── .git/
-└── furu-data/
-    ├── data/                     # Default storage (version_controlled=False)
-    │   └── <module>/<Class>/
-    │       └── <hash>/
-    │           ├── .furu/
-    │           │   ├── metadata.json # Config, git info, environment
-    │           │   ├── state.json    # Status and timestamps
-    │           │   ├── furu.log    # Captured logs
-    │           │   └── SUCCESS.json  # Marker file
-    │           └── <your outputs>    # Files from _create()
-    ├── raw/                      # Shared directory for large files
-    └── artifacts/                # version_controlled=True (override via FURU_VERSION_CONTROLLED_PATH)
-        └── <same structure>
+FURU_PATH=<project>/furu-data
+FURU_VERSION_CONTROLLED_PATH=<project>/furu-data/artifacts
+```
+
+`<project>` is the nearest directory containing `pyproject.toml` (falling back to
+the git root). This means you can move `FURU_PATH` without relocating artifacts.
+
+```
+$FURU_PATH/
+├── data/                         # version_controlled=False
+│   └── <module>/<Class>/<hash>/
+└── raw/
+
+$FURU_VERSION_CONTROLLED_PATH/    # version_controlled=True
+└── <module>/<Class>/<hash>/
 ```
 
 ## Features
@@ -251,8 +246,8 @@ For artifacts that should be stored separately (e.g., checked into git):
 
 ```python
 class VersionedConfig(furu.Furu[dict], version_controlled=True):
-    # Stored under <project>/furu-data/artifacts by default.
-    # Override with FURU_VERSION_CONTROLLED_PATH if needed.
+    # Stored under $FURU_VERSION_CONTROLLED_PATH
+    # Default: <project>/furu-data/artifacts
     ...
 ```
 
