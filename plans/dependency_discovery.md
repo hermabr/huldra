@@ -13,7 +13,7 @@ class Furu[T](ABC):
     def _dependencies(self) -> DependencySpec | None:
         return None
 
-    def get_dependencies(self, *, recursive: bool = True) -> list["Furu"]:
+    def _get_dependencies(self, *, recursive: bool = True) -> list["Furu"]:
         ...
 ```
 
@@ -34,7 +34,7 @@ DependencySpec: TypeAlias = (
 ```
 
 ## Behavior Rules
-- `get_dependencies(recursive=True)` returns a stable, pre-order traversal of all
+- `_get_dependencies(recursive=True)` returns a stable, pre-order traversal of all
   dependencies from:
   1) `Furu` instances in `@chz` fields and nested containers
   2) the optional `_dependencies()` hook
@@ -98,13 +98,13 @@ class Collection(Furu[int]):
 
 
 collection = Collection(n_tasks=3, base_task=Task(value=10))
-deps = collection.get_dependencies()
+deps = collection._get_dependencies()
 # deps -> [Task(value=10), Task(value=0), Task(value=1), Task(value=2)]
 ```
 
 ## Test Examples
 ```python
-def test_get_dependencies_dedup_and_order(furu_tmp_root) -> None:
+def test_dependencies_dedup_and_order(furu_tmp_root) -> None:
     class Task(furu.Furu[int]):
         value: int
         def _create(self) -> int:
@@ -129,7 +129,7 @@ def test_get_dependencies_dedup_and_order(furu_tmp_root) -> None:
 
     base = Task(value=0)
     obj = Collection(base_task=base, n_tasks=2)
-    deps = obj.get_dependencies(recursive=False)
+    deps = obj._get_dependencies(recursive=False)
     assert [dep.value for dep in deps] == [0, 1]
 
 
@@ -155,10 +155,10 @@ def test_dependencies_spec_rejects_non_furu(furu_tmp_root) -> None:
             return 0
 
     with pytest.raises(TypeError, match="label"):
-        Collection().get_dependencies()
+        Collection()._get_dependencies()
 
 
-def test_get_dependencies_recursive(furu_tmp_root) -> None:
+def test_dependencies_recursive(furu_tmp_root) -> None:
     class Leaf(furu.Furu[int]):
         value: int
         def _create(self) -> int:
@@ -181,7 +181,7 @@ def test_get_dependencies_recursive(furu_tmp_root) -> None:
             return 0
 
     root = Root(mid=Mid(leaf=Leaf(value=1)))
-    deps = root.get_dependencies()
+    deps = root._get_dependencies()
     assert [d.__class__.__name__ for d in deps] == ["Mid", "Leaf"]
 ```
 
@@ -189,6 +189,6 @@ def test_get_dependencies_recursive(furu_tmp_root) -> None:
 1. Add `DependencySpec` type alias and `_dependencies()` default method in
    `src/furu/core/furu.py`.
 2. Implement dependency walkers (lenient for config fields, strict for `_dependencies()`).
-3. Add `get_dependencies(recursive=True)` with stable pre-order traversal and de-dup.
+3. Add `_get_dependencies(recursive=True)` with stable pre-order traversal and de-dup.
 4. Add tests to `tests/test_furu_dependencies.py` based on the examples above.
 5. Update `CHANGELOG.md` with a `## Unreleased` section documenting the new API and typing helpers.

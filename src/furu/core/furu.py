@@ -198,13 +198,8 @@ class Furu[T](ABC):
         """Return extra dependencies not captured by fields."""
         return None
 
-    def get_dependencies(self: Self, *, recursive: bool = True) -> list["Furu"]:
-        """
-        Collect Furu dependencies from fields and `_dependencies()`.
-
-        Args:
-            recursive: If True, include transitive dependencies.
-        """
+    def _get_dependencies(self: Self, *, recursive: bool = True) -> list["Furu"]:
+        """Collect Furu dependencies from fields and `_dependencies()`."""
         seen = {self._furu_hash}
         dependencies: list[Furu] = []
         _collect_dependencies(self, dependencies, seen, recursive=recursive)

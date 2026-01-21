@@ -120,30 +120,30 @@ class Fibonacci(furu.Furu[int]):
         return json.loads((self.furu_dir / "fib.json").read_text())
 
 
-def test_get_dependencies_deduplicates_fields_and_dependencies(furu_tmp_root) -> None:
+def test_dependencies_deduplicates_fields_and_dependencies(furu_tmp_root) -> None:
     base_task = DependencyTask(value=0)
     collection = DependencyCollection(n_tasks=2, base_task=base_task)
 
-    deps = collection.get_dependencies(recursive=False)
+    deps = collection._get_dependencies(recursive=False)
 
     assert deps[0] is base_task
     values = [dep.value for dep in deps if isinstance(dep, DependencyTask)]
     assert values == [0, 1]
 
 
-def test_get_dependencies_deduplicates_repeated_dependencies(furu_tmp_root) -> None:
-    deps = DuplicateDependencyHolder().get_dependencies(recursive=False)
+def test_dependencies_deduplicates_repeated_dependencies(furu_tmp_root) -> None:
+    deps = DuplicateDependencyHolder()._get_dependencies(recursive=False)
 
     values = [dep.value for dep in deps if isinstance(dep, DependencyTask)]
     assert values == [1]
 
 
-def test_get_dependencies_two_layers_with_dependencies(furu_tmp_root) -> None:
+def test_dependencies_two_layers_with_dependencies(furu_tmp_root) -> None:
     leaf = DependencyTask(value=1)
     layer_two = DependencyLayerTwo(leaf=leaf)
     root = DependencyLayerOne(layer_two=layer_two)
 
-    deps = root.get_dependencies()
+    deps = root._get_dependencies()
 
     assert deps[0] is layer_two
     assert deps[1] is leaf
@@ -151,15 +151,15 @@ def test_get_dependencies_two_layers_with_dependencies(furu_tmp_root) -> None:
     assert task_values == [1, 2, 3]
 
 
-def test_get_dependencies_fibonacci_recursive(furu_tmp_root) -> None:
-    deps = Fibonacci(n=4).get_dependencies()
+def test_dependencies_fibonacci_recursive(furu_tmp_root) -> None:
+    deps = Fibonacci(n=4)._get_dependencies()
 
     values = [dep.n for dep in deps if isinstance(dep, Fibonacci)]
     assert values == [3, 2, 1, 0]
 
 
-def test_get_dependencies_fibonacci_direct(furu_tmp_root) -> None:
-    deps = Fibonacci(n=4).get_dependencies(recursive=False)
+def test_dependencies_fibonacci_direct(furu_tmp_root) -> None:
+    deps = Fibonacci(n=4)._get_dependencies(recursive=False)
 
     values = [dep.n for dep in deps if isinstance(dep, Fibonacci)]
     assert values == [3, 2]
@@ -167,7 +167,7 @@ def test_get_dependencies_fibonacci_direct(furu_tmp_root) -> None:
 
 def test_dependencies_spec_rejects_non_furu_fields(furu_tmp_root) -> None:
     with pytest.raises(TypeError, match="label"):
-        BadDependencyCollection().get_dependencies()
+        BadDependencyCollection()._get_dependencies()
 
 
 def test_hash_includes_dependency_spec(monkeypatch) -> None:
