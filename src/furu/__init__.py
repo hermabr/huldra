@@ -13,7 +13,7 @@ __version__ = version("furu")
 
 from .config import FURU_CONFIG, FuruConfig, get_furu_root, set_furu_root
 from .adapters import SubmititAdapter
-from .core import Furu, FuruList
+from .core import DependencyChzSpec, DependencySpec, Furu, FuruList
 from .errors import (
     FuruComputeError,
     FuruError,
@@ -56,6 +56,8 @@ __all__ = [
     "FuruMigrationRequired",
     "FuruSerializer",
     "FuruWaitTimeout",
+    "DependencyChzSpec",
+    "DependencySpec",
     "MISSING",
     "migrate",
     "NamespacePair",

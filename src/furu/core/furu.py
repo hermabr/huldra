@@ -10,11 +10,28 @@ import traceback
 from abc import ABC, abstractmethod
 from pathlib import Path
 from types import FrameType
-from typing import Any, Callable, ClassVar, Self, TypedDict, TypeVar, cast, overload
+from typing import (
+    AbstractSet,
+    Any,
+    Callable,
+    ClassVar,
+    Hashable,
+    Mapping,
+    Protocol,
+    Self,
+    Sequence,
+    TypedDict,
+    TypeAlias,
+    TypeVar,
+    cast,
+    overload,
+)
 
 import chz
 import submitit
 from typing_extensions import dataclass_transform
+
+from chz.field import Field as ChzField
 
 from ..adapters import SubmititAdapter
 from ..adapters.submitit import SubmititJob
@@ -176,6 +193,22 @@ class Furu[T](ABC):
     def _validate(self: Self) -> bool:
         """Validate that result is complete and correct (override if needed)."""
         return True
+
+    def _dependencies(self: Self) -> "DependencySpec | None":
+        """Return extra dependencies not captured by fields."""
+        return None
+
+    def get_dependencies(self: Self, *, recursive: bool = True) -> list["Furu"]:
+        """
+        Collect Furu dependencies from fields and `_dependencies()`.
+
+        Args:
+            recursive: If True, include transitive dependencies.
+        """
+        seen = {self._furu_hash}
+        dependencies: list[Furu] = []
+        _collect_dependencies(self, dependencies, seen, recursive=recursive)
+        return dependencies
 
     def _invalidate_cached_success(self: Self, directory: Path, *, reason: str) -> None:
         logger = get_logger()
@@ -996,6 +1029,203 @@ class Furu[T](ABC):
 
         for sig in (signal.SIGTERM, signal.SIGINT):
             signal.signal(sig, handle_signal)
+
+
+class DependencyChzSpec(Protocol):
+    __chz_fields__: dict[str, ChzField]
+
+
+DependencySequence: TypeAlias = Sequence[Furu]
+DependencySet: TypeAlias = AbstractSet[Furu]
+DependencyMapping: TypeAlias = Mapping[str, Furu]
+DependencyCollection: TypeAlias = DependencySequence | DependencySet | DependencyMapping
+DependencyValue: TypeAlias = Furu | DependencyCollection
+DependencySpec: TypeAlias = DependencyValue | DependencyChzSpec
+DependencyLeaf: TypeAlias = str | int | float | bool | None | Path | bytes
+DependencyScanValue: TypeAlias = (
+    DependencyLeaf
+    | Furu
+    | Mapping[Hashable, "DependencyScanValue"]
+    | Sequence["DependencyScanValue"]
+    | AbstractSet["DependencyScanValue"]
+    | DependencyChzSpec
+)
+
+
+def _collect_dependencies(
+    obj: Furu,
+    dependencies: list[Furu],
+    seen: set[str],
+    *,
+    recursive: bool,
+) -> None:
+    for dependency in _direct_dependencies(obj):
+        digest = dependency._furu_hash
+        if digest in seen:
+            continue
+        seen.add(digest)
+        dependencies.append(dependency)
+        if recursive:
+            _collect_dependencies(
+                dependency,
+                dependencies,
+                seen,
+                recursive=recursive,
+            )
+
+
+def _direct_dependencies(obj: Furu) -> list[Furu]:
+    dependencies: list[Furu] = []
+    for field in chz.chz_fields(obj).values():
+        value = cast(DependencyScanValue, getattr(obj, field.logical_name))
+        dependencies.extend(_collect_dependencies_from_value(value))
+    extra = obj._dependencies()
+    if extra is not None:
+        dependencies.extend(_collect_dependencies_from_spec(extra, path="dependencies"))
+    return dependencies
+
+
+def _collect_dependencies_from_value(value: DependencyScanValue) -> list[Furu]:
+    dependencies: list[Furu] = []
+    if isinstance(value, Furu):
+        dependencies.append(value)
+        return dependencies
+    if isinstance(value, dict):
+        mapping = cast(Mapping[Hashable, DependencyScanValue], value)
+        for item in mapping.values():
+            dependencies.extend(_collect_dependencies_from_value(item))
+        return dependencies
+    if isinstance(value, (list, tuple)):
+        sequence = cast(Sequence[DependencyScanValue], value)
+        for item in sequence:
+            dependencies.extend(_collect_dependencies_from_value(item))
+        return dependencies
+    if isinstance(value, (set, frozenset)):
+        items = _sorted_dependency_set(cast(AbstractSet[DependencyScanValue], value))
+        for item in items:
+            dependencies.extend(_collect_dependencies_from_value(item))
+        return dependencies
+    if chz.is_chz(value):
+        for field in chz.chz_fields(value).values():
+            field_value = cast(DependencyScanValue, getattr(value, field.logical_name))
+            dependencies.extend(_collect_dependencies_from_value(field_value))
+    return dependencies
+
+
+def _collect_dependencies_from_spec(value: DependencySpec, path: str) -> list[Furu]:
+    if isinstance(value, Furu):
+        return [value]
+    if isinstance(value, dict):
+        return _collect_dependencies_from_mapping(
+            cast(Mapping[Hashable, DependencyValue], value),
+            path,
+        )
+    if isinstance(value, (list, tuple)):
+        return _collect_dependencies_from_sequence(
+            cast(Sequence[DependencyValue], value),
+            path,
+        )
+    if isinstance(value, (set, frozenset)):
+        return _collect_dependencies_from_set(
+            cast(AbstractSet[DependencyValue], value),
+            path,
+        )
+    if chz.is_chz(value):
+        dependencies: list[Furu] = []
+        for field in chz.chz_fields(value).values():
+            field_value = getattr(value, field.logical_name)
+            field_path = f"{path}.{field.logical_name}"
+            dependencies.extend(
+                _collect_dependencies_from_value_spec(field_value, field_path)
+            )
+        return dependencies
+    raise _dependency_type_error(path, value)
+
+
+def _collect_dependencies_from_value_spec(
+    value: DependencyValue,
+    path: str,
+) -> list[Furu]:
+    if isinstance(value, Furu):
+        return [value]
+    if isinstance(value, dict):
+        return _collect_dependencies_from_mapping(
+            cast(Mapping[Hashable, DependencyValue], value),
+            path,
+        )
+    if isinstance(value, (list, tuple)):
+        return _collect_dependencies_from_sequence(
+            cast(Sequence[DependencyValue], value),
+            path,
+        )
+    if isinstance(value, (set, frozenset)):
+        return _collect_dependencies_from_set(
+            cast(AbstractSet[DependencyValue], value),
+            path,
+        )
+    raise _dependency_type_error(path, value)
+
+
+def _collect_dependencies_from_mapping(
+    mapping: Mapping[Hashable, DependencyValue],
+    path: str,
+) -> list[Furu]:
+    dependencies: list[Furu] = []
+    for key, item in mapping.items():
+        if not isinstance(item, Furu):
+            raise _dependency_type_error(f"{path}[{key!r}]", item)
+        dependencies.append(item)
+    return dependencies
+
+
+def _collect_dependencies_from_sequence(
+    sequence: Sequence[DependencyValue],
+    path: str,
+) -> list[Furu]:
+    dependencies: list[Furu] = []
+    for index, item in enumerate(sequence):
+        if not isinstance(item, Furu):
+            raise _dependency_type_error(f"{path}[{index}]", item)
+        dependencies.append(item)
+    return dependencies
+
+
+def _collect_dependencies_from_set(
+    values: AbstractSet[DependencyValue],
+    path: str,
+) -> list[Furu]:
+    dependencies: list[Furu] = []
+    ordered = sorted(
+        list(cast(AbstractSet[DependencyScanValue], values)),
+        key=_dependency_sort_key,
+    )
+    for index, item in enumerate(ordered):
+        if not isinstance(item, Furu):
+            raise _dependency_type_error(f"{path}[{index}]", item)
+        dependencies.append(item)
+    return dependencies
+
+
+def _sorted_dependency_set(
+    values: AbstractSet[DependencyScanValue],
+) -> list[DependencyScanValue]:
+    return sorted(list(values), key=_dependency_sort_key)
+
+
+def _dependency_sort_key(value: DependencyScanValue) -> tuple[int, str]:
+    if isinstance(value, Furu):
+        return (0, value._furu_hash)
+    return (1, f"{type(value).__name__}:{value!r}")
+
+
+def _dependency_type_error(
+    path: str,
+    value: DependencySpec | DependencyValue | DependencyScanValue,
+) -> TypeError:
+    return TypeError(
+        f"{path} must be a Furu instance or a collection of Furu instances; "
+        f"got {type(value).__name__}"
+    )
 
 
 _H = TypeVar("_H", bound=Furu, covariant=True)
