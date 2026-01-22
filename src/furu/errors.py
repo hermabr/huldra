@@ -70,11 +70,8 @@ class FuruComputeError(FuruError):
         msg = super().__str__()  # ty: ignore[invalid-super-argument]
         internal_dir = self.state_path.parent
         furu_dir = internal_dir.parent
-        log_path = internal_dir / "furu.log"
 
-        msg += f"\n\nDirectory: {furu_dir}"
-        msg += f"\nState file: {self.state_path}"
-        msg += f"\nLog file: {log_path}"
+        msg += f"\n\nFuru dir: {furu_dir}"
 
         if self.recorded_error_type or self.recorded_error_message:
             msg += "\n\nRecorded error (from state.json):"

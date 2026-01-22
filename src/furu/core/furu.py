@@ -612,20 +612,14 @@ class Furu[T](ABC):
     def _add_exception_breadcrumbs(self, exc: BaseException, directory: Path) -> None:
         if not hasattr(exc, "add_note"):
             return
-        state_path = StateManager.get_state_path(directory)
-        log_path = StateManager.get_internal_dir(directory) / "furu.log"
-        note = (
-            f"Furu directory: {directory}\n"
-            f"State file: {state_path}\n"
-            f"Log file: {log_path}"
-        )
+        note = f"Furu dir: {directory}"
         exc.add_note(note)
 
     @staticmethod
     def _failed_state_hints() -> list[str]:
         return [
             "To retry this failed artifact: set FURU_RETRY_FAILED=1 or call load_or_create(retry_failed=True).",
-            "To inspect details: open the state file and furu.log shown above.",
+            "To inspect details: open the furu dir shown above.",
         ]
 
     def _build_failed_state_error(

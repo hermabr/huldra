@@ -1,5 +1,9 @@
 # Changelog
 
+## Unreleased
+
+- Simplify error output to only include the furu directory path.
+
 ## v0.0.3
 
 - Add dependency discovery via `_dependencies()` and `_get_dependencies()` with recursive traversal and de-duplication, plus `DependencySpec`/`DependencyChzSpec` typing helpers.
