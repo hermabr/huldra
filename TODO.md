@@ -4,7 +4,7 @@
 
 - [ ] support doing time machine to go back to the state at the time an artifact was created
 - [x] add a flag which makes one item always rerun, such as FURU_ALWAYS_RERUN="mypkg.my_file.MyObject"
-- [ ] Change the version controlled flow so that it is always saved in the current folder at the same level as the pyproject.toml if that exists and in .gitignore if that exists and if not it throws. This should happen even if the general furu directory is somewhere else. It should save it to something like furu-data/artifacts or a better similar name. It should be possible to override this with an env variable.
+- [x] Change the version controlled flow so that it is always saved in the current folder at the same level as the pyproject.toml if that exists and in .gitignore if that exists and if not it throws. This should happen even if the general furu directory is somewhere else. It should save it to something like furu-data/artifacts or a better similar name. It should be possible to override this with an env variable.
 - [x] When waiting, say how long you will be waiting and how long since file was touched
 - [?] Sometimes it gets stuck in waiting for compute lock forever
 - [x] Rename to furu
@@ -17,6 +17,8 @@
 
 - [ ] Make speed benchmarks and make operations faster, such as very large objects for hashing
 - [ ] On errors, such as "you cannot run this from __main__", consider adding a comment telling it which env flag it can change (do this for all errors where we have flags and include in agents.md)
+- [ ] Make the scanner faster/using cache
+- [ ] Use cache where reasonable
 
 ## Storage & Data Management
 
@@ -26,7 +28,7 @@
 
 ## Dependency & Cache Management
 
-- [ ] Reverse dependency tracking - Find which experiments depend on a given artifact
+- [x] Reverse dependency tracking - Find which experiments depend on a given artifact
 - [ ] Cascade invalidation - Option to invalidate downstream dependents when parent changes
 - [ ] Orphan detection - Find artifacts no longer referenced by code
 - [ ] Cache miss explanation - "This will recompute because field X changed"
@@ -45,6 +47,7 @@
 ### Submitit
 
 - [ ] Checkpointing - Resume long-running computations from checkpoints for slurm jobs
+- [ ] Clean setup including dependencies for submitit jobs and simple config for setting up configs per class
 
 ## Dashboard Features
 
