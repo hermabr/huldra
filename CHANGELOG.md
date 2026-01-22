@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## v0.0.3
 
 - Add dependency discovery via `_dependencies()` and `_get_dependencies()` with recursive traversal and de-duplication, plus `DependencySpec`/`DependencyChzSpec` typing helpers.
 - Include direct dependencies in `Furu` hashing to invalidate caches when implicit dependencies change.
