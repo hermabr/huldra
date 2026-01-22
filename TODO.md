@@ -12,6 +12,7 @@
 - [x] Verify that all tests including e2e and dashboard tests are using tmp directory for furu root data dir
 - [x] make dashboard-dev should populate dummy data
 - [ ] Better and more complex filtering, maybe inspired by wandb etc
+- [ ] Flag for allowing running in either debug mode or running __main__. Probably it should redirect the output to a temp directory
 
 ## Code Quality
 
