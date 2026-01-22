@@ -40,6 +40,7 @@
 - [x] Always rerun flag (`FURU_ALWAYS_RERUN`) - Recompute even if artifact exists
 - [ ] Resource tracking - Track peak memory, CPU time, GPU usage during `_create()`
 - [ ] Checkpointing - Resume long-running computations from checkpoints
+- [ ] Record how long it took to compute an artifact and show in the dashboard
 
 ### Submitit
 
