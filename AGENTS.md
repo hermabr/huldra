@@ -204,7 +204,7 @@ except Exception:
 def test_exists_reflects_success_state(furu_tmp_root) -> None:
     obj = Dummy()
     assert obj.exists() is False
-    obj.load_or_create()
+    obj.get()
     assert obj.exists() is True
 ```
 

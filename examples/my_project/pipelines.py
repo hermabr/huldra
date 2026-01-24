@@ -23,7 +23,7 @@ class TrainModel(furu.Furu[Path]):
                 {
                     "lr": self.lr,
                     "steps": self.steps,
-                    "dataset": str(self.dataset.load_or_create()),
+                    "dataset": str(self.dataset.get()),
                 },
                 indent=2,
             )
@@ -56,7 +56,7 @@ class TrainTextModel(furu.Furu[Path]):
 
     def _create(self) -> Path:
         log.info("training text model")
-        dataset_path = self.dataset.load_or_create()
+        dataset_path = self.dataset.get()
         model_path = self.furu_dir / "model.txt"
         model_path.write_text(f"trained on:\n{dataset_path.read_text()}")
         return model_path

@@ -2,7 +2,12 @@
 
 ## Unreleased
 
-- Simplify error output to only include the furu directory path.
+- Add stable `Furu.furu_hash` accessor for artifact identity.
+- Package dashboard frontend assets and report package version in dashboard metadata and health responses.
+- Introduce executor planning plus a local thread-pool executor for dependency graphs.
+- Add submitit/Slurm DAG + pool executors with `SlurmSpec`, `FURU_SUBMITIT_PATH`, and bounded retries via `FURU_MAX_COMPUTE_RETRIES`.
+- Tighten executor APIs (`get()` only, config-only `retry_failed`) and improve lock/heartbeat error handling.
+- Harden dashboard routing, fix lock-release races, and simplify executor error output.
 
 ## v0.0.3
 

@@ -5,5 +5,14 @@ Install with: uv add furu[dashboard]
 Run with: furu-dashboard serve
 """
 
-__version__ = "0.1.0"
+from importlib import metadata
 
+
+def _resolve_version() -> str:
+    try:
+        return metadata.version("furu")
+    except metadata.PackageNotFoundError:
+        return "0.0.0"
+
+
+__version__ = _resolve_version()

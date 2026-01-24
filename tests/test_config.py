@@ -4,15 +4,17 @@ import furu
 from furu.config import FuruConfig
 
 
-def test_get_and_set_furu_root(furu_tmp_root, tmp_path) -> None:
+def test_get_and_set_furu_root(furu_tmp_root, tmp_path, monkeypatch) -> None:
     assert furu.get_furu_root(version_controlled=False) == furu_tmp_root / "data"
     assert furu.get_furu_root(version_controlled=True) == (
         furu_tmp_root / "furu-data" / "artifacts"
     )
     assert furu.FURU_CONFIG.raw_dir == furu_tmp_root / "raw"
 
+    monkeypatch.delenv("FURU_SUBMITIT_PATH", raising=False)
     furu.set_furu_root(tmp_path)
     assert furu.FURU_CONFIG.base_root == tmp_path.resolve()
+    assert furu.FURU_CONFIG.submitit_root == tmp_path.resolve() / "submitit"
 
 
 def test_default_base_root_uses_pyproject(tmp_path, monkeypatch) -> None:

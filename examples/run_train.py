@@ -16,7 +16,7 @@ def main() -> None:
     # furu.FURU_CONFIG.ignore_git_diff = True
 
     obj = TrainModel(lr=3e-4, steps=2_000, dataset=PrepareDataset(name="mydata"))
-    artifact = obj.load_or_create()
+    artifact = obj.get()
     print("artifact:", artifact)
     print("artifact dir:", obj.furu_dir)
     print("log:", obj.furu_dir / ".furu" / "furu.log")

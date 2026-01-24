@@ -205,7 +205,7 @@ def test_migrate_move_transfers_payload(furu_tmp_root) -> None:
     from_obj = RenamedSource(value=1)
     to_obj = RenamedTarget(value=1)
 
-    assert from_obj.load_or_create() == 1
+    assert from_obj.get() == 1
 
     furu.migrate(from_obj, to_obj, policy="move", origin="tests")
 
@@ -214,7 +214,7 @@ def test_migrate_move_transfers_payload(furu_tmp_root) -> None:
 
     assert not (from_dir / "value.txt").exists()
     assert (to_dir / "value.txt").read_text() == "1"
-    assert to_obj.load_or_create() == 1
+    assert to_obj.get() == 1
 
     to_record = MigrationManager.read_migration(to_dir)
     assert to_record is not None
@@ -234,7 +234,7 @@ def test_migrate_alias_always_rerun_detaches(furu_tmp_root, monkeypatch) -> None
     from_obj = RenamedSource(value=1)
     to_obj = RenamedTarget(value=1)
 
-    assert from_obj.load_or_create() == 1
+    assert from_obj.get() == 1
 
     furu.migrate(from_obj, to_obj, policy="alias", origin="tests")
 
@@ -245,7 +245,7 @@ def test_migrate_alias_always_rerun_detaches(furu_tmp_root, monkeypatch) -> None
     qualname = f"{to_obj.__class__.__module__}.{to_obj.__class__.__qualname__}"
     monkeypatch.setattr(furu.FURU_CONFIG, "always_rerun", {qualname})
 
-    assert to_obj.load_or_create() == 1
+    assert to_obj.get() == 1
 
     state_after = StateManager.read_state(alias_dir)
     assert isinstance(state_after.result, _StateResultSuccess)
@@ -279,7 +279,7 @@ def test_migrate_alias_of_alias_is_skipped(furu_tmp_root) -> None:
     from_obj = RenamedSource(value=2)
     to_obj = RenamedTarget(value=2)
 
-    assert from_obj.load_or_create() == 2
+    assert from_obj.get() == 2
 
     furu.migrate(from_obj, to_obj, policy="alias", origin="tests")
 
@@ -306,7 +306,7 @@ def test_migrate_alias_for_rename(furu_tmp_root) -> None:
     from_obj = RenamedSource(value=10)
     to_obj = RenamedTarget(value=10)
 
-    assert from_obj.load_or_create() == 10
+    assert from_obj.get() == 10
 
     furu.migrate(from_obj, to_obj, policy="alias", origin="tests", note="rename")
 
@@ -319,14 +319,14 @@ def test_migrate_alias_for_rename(furu_tmp_root) -> None:
     assert alias_record.from_namespace.endswith("RenamedSource")
     assert alias_record.to_namespace.endswith("RenamedTarget")
 
-    assert to_obj.load_or_create() == 10
+    assert to_obj.get() == 10
 
 
 def test_migrate_alias_with_added_field_default(furu_tmp_root) -> None:
     from_obj = AddedFieldV1(value=5)
     to_obj = AddedFieldV2(value=5)
 
-    assert from_obj.load_or_create() == 5
+    assert from_obj.get() == 5
 
     candidates = furu.find_migration_candidates(
         namespace=furu.NamespacePair(
@@ -338,7 +338,7 @@ def test_migrate_alias_with_added_field_default(furu_tmp_root) -> None:
     assert len(candidates) == 1
 
     to_config = candidates[0].to_config
-    assert furu.FuruSerializer.compute_hash(to_config) == to_obj._furu_hash
+    assert furu.FuruSerializer.compute_hash(to_config) == to_obj.furu_hash
 
     furu.apply_migration(
         candidates[0],
@@ -355,14 +355,14 @@ def test_migrate_alias_with_added_field_default(furu_tmp_root) -> None:
     alias_state = StateManager.read_state(to_obj._base_furu_dir())
     assert isinstance(alias_state.result, _StateResultMigrated)
 
-    assert to_obj.load_or_create() == 5
+    assert to_obj.get() == 5
 
 
 def test_migrate_same_class_add_required_field(furu_tmp_root) -> None:
     same_class_v1 = _same_class_v1()
     from_obj = same_class_v1(name="mnist")
 
-    assert from_obj.load_or_create() == 5
+    assert from_obj.get() == 5
 
     same_class_v2 = _same_class_v2_required()
     candidates = furu.find_migration_candidates(
@@ -388,14 +388,14 @@ def test_migrate_same_class_add_required_field(furu_tmp_root) -> None:
     alias_state = StateManager.read_state(to_obj._base_furu_dir())
     assert isinstance(alias_state.result, _StateResultMigrated)
 
-    assert to_obj.load_or_create() == 5
+    assert to_obj.get() == 5
 
 
 def test_migrate_same_class_drop_fields_and_defaults(furu_tmp_root) -> None:
     same_class_v1 = _same_class_v1()
     from_obj = same_class_v1(name="dummy")
 
-    assert from_obj.load_or_create() == 5
+    assert from_obj.get() == 5
 
     same_class_v2 = _same_class_v2_optional()
     candidates = furu.find_migration_candidates(
@@ -421,14 +421,14 @@ def test_migrate_same_class_drop_fields_and_defaults(furu_tmp_root) -> None:
     alias_state = StateManager.read_state(to_obj._base_furu_dir())
     assert isinstance(alias_state.result, _StateResultMigrated)
 
-    assert to_obj.load_or_create() == 5
+    assert to_obj.get() == 5
 
 
 def test_migrate_default_fields_conflict(furu_tmp_root) -> None:
     same_class_v1 = _same_class_v1()
     from_obj = same_class_v1(name="dummy")
 
-    assert from_obj.load_or_create() == 5
+    assert from_obj.get() == 5
 
     same_class_v2 = _same_class_v2_optional()
     with pytest.raises(ValueError, match="default_fields and default_values overlap"):
@@ -444,7 +444,7 @@ def test_migrate_default_values_wrong_type(furu_tmp_root) -> None:
     same_class_v1 = _same_class_v1()
     from_obj = same_class_v1(name="dummy")
 
-    assert from_obj.load_or_create() == 5
+    assert from_obj.get() == 5
 
     same_class_v2 = _same_class_v2_required()
     with pytest.raises(Exception):
@@ -459,7 +459,7 @@ def test_migrate_drop_fields_unknown(furu_tmp_root) -> None:
     same_class_v1 = _same_class_v1()
     from_obj = same_class_v1(name="dummy")
 
-    assert from_obj.load_or_create() == 5
+    assert from_obj.get() == 5
 
     same_class_v2 = _same_class_v2_optional()
     with pytest.raises(ValueError, match="drop_fields contains unknown fields"):
@@ -474,7 +474,7 @@ def test_migrate_drop_fields_and_default_overlap(furu_tmp_root) -> None:
     same_class_v1 = _same_class_v1()
     from_obj = same_class_v1(name="dummy")
 
-    assert from_obj.load_or_create() == 5
+    assert from_obj.get() == 5
 
     same_class_v2 = _same_class_v2_optional()
     with pytest.raises(ValueError, match="default_values provided for existing fields"):
@@ -533,7 +533,7 @@ def test_migrate_wrapper_rejects_invalid_defaults(furu_tmp_root) -> None:
     from_obj = same_class_v1(name="dummy")
     to_obj = same_class_v2(name="dummy", language="english")
 
-    assert from_obj.load_or_create() == 5
+    assert from_obj.get() == 5
 
     with pytest.raises(ValueError, match="missing required fields"):
         furu.migrate(from_obj, to_obj, default_values={"unknown": "bad"})
@@ -543,8 +543,8 @@ def test_migrate_git_root_records_git(furu_tmp_root) -> None:
     from_obj = GitDummy(value=3)
     to_obj = GitDummy(value=3)
 
-    assert from_obj.load_or_create() == 3
-    assert to_obj.load_or_create() == 3
+    assert from_obj.get() == 3
+    assert to_obj.get() == 3
 
     candidates = furu.find_migration_candidates(
         namespace=furu.NamespacePair(
@@ -572,8 +572,8 @@ def test_migrate_conflict_skip_on_success(furu_tmp_root) -> None:
     from_obj = RenamedSource(value=4)
     to_obj = RenamedTarget(value=4)
 
-    assert from_obj.load_or_create() == 4
-    assert to_obj.load_or_create() == 4
+    assert from_obj.get() == 4
+    assert to_obj.get() == 4
 
     candidates = furu.find_migration_candidates(
         namespace=furu.NamespacePair(
@@ -598,8 +598,8 @@ def test_migrate_conflict_overwrite_on_success(furu_tmp_root) -> None:
     from_obj = RenamedSource(value=5)
     to_obj = RenamedTarget(value=5)
 
-    assert from_obj.load_or_create() == 5
-    assert to_obj.load_or_create() == 5
+    assert from_obj.get() == 5
+    assert to_obj.get() == 5
 
     candidates = furu.find_migration_candidates(
         namespace=furu.NamespacePair(
@@ -634,7 +634,7 @@ def test_migrate_conflict_skip_on_running(furu_tmp_root) -> None:
     from_obj = RenamedSource(value=6)
     to_obj = RenamedTarget(value=6)
 
-    assert from_obj.load_or_create() == 6
+    assert from_obj.get() == 6
 
     running_state = StateManager.read_state(to_obj._base_furu_dir())
 
@@ -691,11 +691,11 @@ def test_migrate_cascade_skip_conflicts(furu_tmp_root) -> None:
     parent = RenamedSource(value=7)
     child = CascadeChild(parent=parent)
 
-    assert parent.load_or_create() == 7
-    assert child.load_or_create() == 7
+    assert parent.get() == 7
+    assert child.get() == 7
 
     target_parent = RenamedTarget(value=7)
-    assert target_parent.load_or_create() == 7
+    assert target_parent.get() == 7
 
     exp_candidates = furu.find_migration_candidates(
         namespace=furu.NamespacePair(
@@ -716,7 +716,7 @@ def test_migrate_cascade_skip_conflicts(furu_tmp_root) -> None:
     )
 
     target_child = CascadeChild(parent=target_parent)
-    assert target_child.load_or_create() == 7
+    assert target_child.get() == 7
 
     candidates = furu.find_migration_candidates(
         namespace=furu.NamespacePair(
@@ -742,8 +742,8 @@ def test_migrate_cascade_updates_dependents(furu_tmp_root) -> None:
     data_obj = DataV1(value=3)
     exp_obj = ExperimentV1(data=data_obj)
 
-    assert data_obj.load_or_create() == 3
-    assert exp_obj.load_or_create() == 3
+    assert data_obj.get() == 3
+    assert exp_obj.get() == 3
 
     data_candidates = furu.find_migration_candidates(
         namespace=furu.NamespacePair(
@@ -788,8 +788,8 @@ def test_migrate_cascade_after_parent_migration(furu_tmp_root) -> None:
     data_obj = DataV1(value=7)
     exp_obj = ExperimentV1(data=data_obj)
 
-    assert data_obj.load_or_create() == 7
-    assert exp_obj.load_or_create() == 7
+    assert data_obj.get() == 7
+    assert exp_obj.get() == 7
 
     exp_candidates = furu.find_migration_candidates(
         namespace=furu.NamespacePair(

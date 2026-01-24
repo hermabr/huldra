@@ -36,7 +36,7 @@ class TrainModel(furu.Furu[Path]):
 
     def _create(self) -> Path:
         # Trigger dependency
-        dataset_path = self.dataset.load_or_create()
+        dataset_path = self.dataset.get()
 
         # Write training metrics
         metrics_path = self.furu_dir / "metrics.json"
@@ -63,7 +63,7 @@ class EvalModel(furu.Furu[Path]):
 
     def _create(self) -> Path:
         # Trigger dependency
-        _ = self.model.load_or_create()
+        _ = self.model.get()
 
         # Fake evaluation results
         results = {"accuracy": 0.95, "loss": 0.05, "split": self.eval_split}
@@ -111,8 +111,8 @@ class MultiDependencyPipeline(furu.Furu[Path]):
 
     def _create(self) -> Path:
         # Trigger both dependencies
-        path1 = self.dataset1.load_or_create()
-        path2 = self.dataset2.load_or_create()
+        path1 = self.dataset1.get()
+        path2 = self.dataset2.get()
 
         # Combine outputs
         output = self.furu_dir / f"{self.output_name}.txt"
@@ -172,7 +172,7 @@ class Train(furu.Furu[Path]):
 
     def _create(self) -> Path:
         # Load the data dependency (works with any Data subclass)
-        data_path = self.data.load_or_create()
+        data_path = self.data.get()
         data_content = json.loads(data_path.read_text())
 
         # Create training output

@@ -18,6 +18,11 @@ class FuruConfig:
             return (project_root / self.DEFAULT_ROOT_DIR).resolve()
 
         self.base_root = _get_base_root()
+        self.submitit_root = (
+            Path(os.getenv("FURU_SUBMITIT_PATH", str(self.base_root / "submitit")))
+            .expanduser()
+            .resolve()
+        )
         self.version_controlled_root_override = self._get_version_controlled_override()
         self.poll_interval = float(os.getenv("FURU_POLL_INTERVAL_SECS", "10"))
         self.wait_log_every_sec = float(os.getenv("FURU_WAIT_LOG_EVERY_SECS", "10"))
@@ -30,6 +35,7 @@ class FuruConfig:
             float(hb) if hb is not None else max(1.0, self.lease_duration_sec / 3.0)
         )
         self.max_requeues = int(os.getenv("FURU_PREEMPT_MAX", "5"))
+        self.max_compute_retries = int(os.getenv("FURU_MAX_COMPUTE_RETRIES", "3"))
         self.retry_failed = os.getenv("FURU_RETRY_FAILED", "1").lower() in {
             "1",
             "true",
@@ -109,6 +115,9 @@ class FuruConfig:
             return self._resolve_version_controlled_root()
         return self.base_root / "data"
 
+    def get_submitit_root(self) -> Path:
+        return self.submitit_root
+
     @classmethod
     def _get_version_controlled_override(cls) -> Path | None:
         env = os.getenv("FURU_VERSION_CONTROLLED_PATH")
@@ -175,4 +184,7 @@ def get_furu_root(*, version_controlled: bool = False) -> Path:
 
 
 def set_furu_root(path: Path) -> None:
-    FURU_CONFIG.base_root = path.resolve()
+    root = path.resolve()
+    FURU_CONFIG.base_root = root
+    if os.getenv("FURU_SUBMITIT_PATH") is None:
+        FURU_CONFIG.submitit_root = (root / "submitit").resolve()

@@ -18,7 +18,7 @@ def main() -> None:
 
     obj = TrainTextModel()
     log.info("about to run: %s", obj.to_python(multiline=False))
-    obj.load_or_create()
+    obj.get()
     log.info("wrote logs to: %s", obj.furu_dir / ".furu" / "furu.log")
 
 
