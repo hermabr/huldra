@@ -432,7 +432,7 @@ def populated_furu_root(_configure_furu_for_module: Path) -> Path:
 def populated_with_dependencies(temp_furu_root: Path) -> Path:
     """Create experiments with a full dependency chain.
 
-    This fixture actually runs load_or_create() to create real experiments,
+    This fixture actually runs get() to create real experiments,
     so it must be function-scoped.
 
     This creates a realistic DAG:
@@ -444,23 +444,23 @@ def populated_with_dependencies(temp_furu_root: Path) -> Path:
     """
     # Base datasets
     dataset1 = PrepareDataset(name="train_data", version="v1")
-    dataset1.load_or_create()
+    dataset1.get()
 
     dataset2 = PrepareDataset(name="val_data", version="v1")
-    dataset2.load_or_create()
+    dataset2.get()
 
     # Training depends on dataset1
     train = TrainModel(lr=0.001, steps=500, dataset=dataset1)
-    train.load_or_create()
+    train.get()
 
     # Evaluation depends on training
     eval_model = EvalModel(model=train, eval_split="validation")
-    eval_model.load_or_create()
+    eval_model.get()
 
     # Multi-dependency pipeline
     multi = MultiDependencyPipeline(
         dataset1=dataset1, dataset2=dataset2, output_name="merged"
     )
-    multi.load_or_create()
+    multi.get()
 
     return temp_furu_root

@@ -6,6 +6,7 @@ from typing import Any, Callable, Protocol
 
 from ..config import FURU_CONFIG
 from ..storage import StateManager
+from ..runtime.logging import get_logger
 from ..storage.state import _FuruState, ProbeResult
 
 
@@ -102,19 +103,39 @@ class SubmititAdapter:
         """Watch for job ID in background thread and update state."""
 
         def watcher():
+            _ = attempt_id  # intentionally unused; queued->running attempt swap is expected
             while True:
                 job_id = self.get_job_id(job)
                 if job_id:
 
                     def mutate(state: _FuruState) -> None:
                         attempt = state.attempt
-                        if attempt is None or attempt.id != attempt_id:
+                        if attempt is None:
+                            return
+                        if attempt.backend != "submitit":
+                            return
+                        if (
+                            attempt.status not in {"queued", "running"}
+                            and attempt.status not in StateManager.TERMINAL_STATUSES
+                        ):
+                            return
+                        existing = attempt.scheduler.get("job_id")
+                        if existing == job_id:
                             return
                         attempt.scheduler["job_id"] = job_id
 
                     StateManager.update_state(directory, mutate)
                     if callback:
-                        callback(job_id)
+                        try:
+                            callback(job_id)
+                        except Exception:
+                            # Avoid killing the watcher thread; state update already happened.
+                            logger = get_logger()
+                            logger.exception(
+                                "submitit watcher: job_id callback failed for %s: %s",
+                                directory,
+                                job_id,
+                            )
                     break
 
                 if self.is_done(job):

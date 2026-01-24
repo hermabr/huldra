@@ -28,16 +28,16 @@ _FURU_HOLDER_STACK: contextvars.ContextVar[tuple[HolderType, ...]] = (
 _FURU_LOG_LOCK = threading.Lock()
 _FURU_CONSOLE_LOCK = threading.Lock()
 
-_LOAD_OR_CREATE_PREFIX = "load_or_create"
+_GET_PREFIX = "get"
 
 
-def _strip_load_or_create_decision_suffix(message: str) -> str:
+def _strip_get_decision_suffix(message: str) -> str:
     """
-    Strip a trailing `(<decision>)` suffix from `load_or_create ...` console lines.
+    Strip a trailing `(<decision>)` suffix from `get ...` console lines.
 
     This keeps detailed decision info in file logs, but makes console output cleaner.
     """
-    if not message.startswith(_LOAD_OR_CREATE_PREFIX):
+    if not message.startswith(_GET_PREFIX):
         return message
     if not message.endswith(")"):
         return message
@@ -69,7 +69,7 @@ def enter_holder(holder: HolderType) -> Generator[None, None, None]:
     """
     Push a holder object onto the logging stack for this context.
 
-    Furu calls this automatically during `load_or_create()`, so nested
+    Furu calls this automatically during `get()`, so nested
     dependencies will log to the active dependency's folder and then revert.
     """
     configure_logging()
@@ -163,7 +163,7 @@ class _FuruRichConsoleHandler(logging.Handler):
 
     @staticmethod
     def _format_location(record: logging.LogRecord) -> str:
-        # Use caller location if available (for load_or_create messages)
+        # Use caller location if available (for get messages)
         caller_file = getattr(record, "furu_caller_file", None)
         caller_line = getattr(record, "furu_caller_line", None)
         if caller_file is not None and caller_line is not None:
@@ -174,10 +174,10 @@ class _FuruRichConsoleHandler(logging.Handler):
 
     @staticmethod
     def _format_message_text(record: logging.LogRecord) -> Text:
-        message = _strip_load_or_create_decision_suffix(record.getMessage())
+        message = _strip_get_decision_suffix(record.getMessage())
         action_color = getattr(record, "furu_action_color", None)
-        if isinstance(action_color, str) and message.startswith(_LOAD_OR_CREATE_PREFIX):
-            prefix = _LOAD_OR_CREATE_PREFIX
+        if isinstance(action_color, str) and message.startswith(_GET_PREFIX):
+            prefix = _GET_PREFIX
             rest = message[len(prefix) :]
             text = Text()
             text.append(prefix, style=action_color)
@@ -288,7 +288,7 @@ def write_separator(line: str = "------------------") -> Path:
     """
     Write a raw separator line to the current holder's `furu.log`.
 
-    This bypasses standard formatting so repeated `load_or_create()` calls are easy to spot.
+    This bypasses standard formatting so repeated `get()` calls are easy to spot.
     """
     directory = current_log_dir()
     log_path = directory / "furu.log"

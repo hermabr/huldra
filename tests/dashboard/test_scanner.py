@@ -749,7 +749,7 @@ def test_get_experiment_dag_edges_populated(populated_furu_root: Path) -> None:
 def test_get_experiment_dag_with_real_dependencies(
     populated_with_dependencies: Path,
 ) -> None:
-    """Test DAG with experiments that have real dependencies created via load_or_create."""
+    """Test DAG with experiments that have real dependencies created via get."""
     dag = get_experiment_dag()
 
     # populated_with_dependencies creates:
@@ -759,7 +759,7 @@ def test_get_experiment_dag_with_real_dependencies(
     # - 1 MultiDependencyPipeline (depends on dataset1 and dataset2)
     assert dag.total_experiments == 5
 
-    # All should be successful since they were created via load_or_create
+    # All should be successful since they were created via get
     for node in dag.nodes:
         assert node.success_count == node.total_count
 

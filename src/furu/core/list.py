@@ -116,7 +116,7 @@ class FuruList(Generic[_H], metaclass=_FuruListMeta):
 
         # Use the collection
         for exp in MyExperiments:
-            result = exp.load_or_create()
+            result = exp.get()
             print(result)
     """
 

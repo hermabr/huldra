@@ -20,15 +20,24 @@ class Dummy(furu.Furu[int]):
         return json.loads((self.furu_dir / "value.json").read_text())
 
 
-def test_load_or_create_returns_create_result_without_load(furu_tmp_root) -> None:
+def test_furu_hash_property_matches_private(furu_tmp_root) -> None:
     obj = Dummy()
-    result = obj.load_or_create()
+    first = obj.furu_hash
+    second = obj.furu_hash
+
+    assert first == obj._furu_hash
+    assert second == obj._furu_hash
+
+
+def test_get_returns_create_result_without_load(furu_tmp_root) -> None:
+    obj = Dummy()
+    result = obj.get()
 
     assert result == 123
     assert obj._create_calls == 1
     assert obj._load_calls == 0
 
-    result2 = obj.load_or_create()
+    result2 = obj.get()
     assert result2 == 123
     assert obj._create_calls == 1
     assert obj._load_calls == 1
@@ -36,27 +45,27 @@ def test_load_or_create_returns_create_result_without_load(furu_tmp_root) -> Non
 
 def test_always_rerun_rebuilds_cached_results(furu_tmp_root, monkeypatch) -> None:
     obj = Dummy()
-    assert obj.load_or_create() == 123
+    assert obj.get() == 123
     assert obj._create_calls == 1
     assert obj._load_calls == 0
 
     qualname = f"{obj.__class__.__module__}.{obj.__class__.__qualname__}"
     monkeypatch.setattr(furu.FURU_CONFIG, "always_rerun", {qualname})
 
-    assert obj.load_or_create() == 123
+    assert obj.get() == 123
     assert obj._create_calls == 2
     assert obj._load_calls == 0
 
 
 def test_always_rerun_all_rebuilds_cached_results(furu_tmp_root, monkeypatch) -> None:
     obj = Dummy()
-    assert obj.load_or_create() == 123
+    assert obj.get() == 123
     assert obj._create_calls == 1
     assert obj._load_calls == 0
 
     monkeypatch.setattr(furu.FURU_CONFIG, "always_rerun_all", True)
 
-    assert obj.load_or_create() == 123
+    assert obj.get() == 123
     assert obj._create_calls == 2
     assert obj._load_calls == 0
 
@@ -64,11 +73,11 @@ def test_always_rerun_all_rebuilds_cached_results(furu_tmp_root, monkeypatch) ->
 def test_exists_reflects_success_state(furu_tmp_root) -> None:
     obj = Dummy()
     assert obj.exists() is False
-    obj.load_or_create()
+    obj.get()
     assert obj.exists() is True
 
 
-def test_load_or_create_recovers_from_expired_running_lease(furu_tmp_root) -> None:
+def test_get_recovers_from_expired_running_lease(furu_tmp_root) -> None:
     obj = Dummy()
     directory = obj._base_furu_dir()
     directory.mkdir(parents=True, exist_ok=True)
@@ -110,14 +119,14 @@ def test_load_or_create_recovers_from_expired_running_lease(furu_tmp_root) -> No
         + "\n"
     )
 
-    result = obj.load_or_create()
+    result = obj.get()
     assert result == 123
     assert isinstance(
         furu.StateManager.read_state(directory).result, _StateResultSuccess
     )
 
 
-def test_load_or_create_waits_until_lease_expires_then_recovers(
+def test_get_waits_until_lease_expires_then_recovers(
     furu_tmp_root,
 ) -> None:
     obj = Dummy()
@@ -163,7 +172,7 @@ def test_load_or_create_waits_until_lease_expires_then_recovers(
 
     furu.StateManager.update_state(directory, mutate2)
 
-    result = obj.load_or_create()
+    result = obj.get()
     assert result == 123
     assert lock_path.exists() is False
     assert isinstance(

@@ -47,7 +47,7 @@ class MetadataFails(furu.Furu[int]):
 def test_failed_create_raises_compute_error_and_records_state(furu_tmp_root) -> None:
     obj = Fails()
     with pytest.raises(RuntimeError, match="boom"):
-        obj.load_or_create()
+        obj.get()
 
     log_text = (obj.furu_dir / ".furu" / "furu.log").read_text()
     assert "[ERROR]" in log_text
@@ -68,13 +68,15 @@ def test_failed_create_raises_compute_error_and_records_state(furu_tmp_root) -> 
 
 def test_failed_state_raises_compute_error_with_recorded_traceback(
     furu_tmp_root,
+    monkeypatch,
 ) -> None:
     obj = Fails()
     with pytest.raises(RuntimeError, match="boom"):
-        obj.load_or_create()
+        obj.get()
 
+    monkeypatch.setattr(furu.FURU_CONFIG, "retry_failed", False)
     with pytest.raises(furu.FuruComputeError) as exc:
-        obj.load_or_create(retry_failed=False)
+        obj.get()
 
     assert exc.value.recorded_traceback is not None
     assert "RuntimeError: boom" in exc.value.recorded_traceback
@@ -83,14 +85,15 @@ def test_failed_state_raises_compute_error_with_recorded_traceback(
     assert "FURU_RETRY_FAILED" in message
 
 
-def test_retry_failed_allows_recompute(furu_tmp_root) -> None:
+def test_retry_failed_allows_recompute(furu_tmp_root, monkeypatch) -> None:
     Flaky._create_calls = 0
     obj = Flaky()
 
     with pytest.raises(RuntimeError, match="boom"):
-        obj.load_or_create()
+        obj.get()
 
-    result = obj.load_or_create(retry_failed=True)
+    monkeypatch.setattr(furu.FURU_CONFIG, "retry_failed", True)
+    result = obj.get()
     assert result == 7
     assert Flaky._create_calls == 2
 
@@ -104,10 +107,10 @@ def test_retry_failed_from_config(furu_tmp_root, monkeypatch) -> None:
 
     monkeypatch.setattr(furu.FURU_CONFIG, "retry_failed", False)
     with pytest.raises(RuntimeError, match="boom"):
-        obj.load_or_create()
+        obj.get()
 
     monkeypatch.setattr(furu.FURU_CONFIG, "retry_failed", True)
-    result = obj.load_or_create()
+    result = obj.get()
     assert result == 7
     assert Flaky._create_calls == 2
 
@@ -120,7 +123,7 @@ def test_metadata_failure_marks_attempt_failed(furu_tmp_root, monkeypatch) -> No
 
     monkeypatch.setattr(furu.MetadataManager, "create_metadata", boom)
     with pytest.raises(furu.FuruComputeError, match="Failed to create metadata") as exc:
-        obj.load_or_create()
+        obj.get()
     assert isinstance(exc.value.original_error, RuntimeError)
 
     state = furu.StateManager.read_state(obj.furu_dir)
@@ -147,7 +150,7 @@ class InvalidValidate(furu.Furu[int]):
 
 def test_exists_raises_if_validate_throws(furu_tmp_root) -> None:
     obj = InvalidValidate()
-    obj.load_or_create()
+    obj.get()
     with pytest.raises(RuntimeError, match="validate error"):
         obj.exists()
 
@@ -165,7 +168,7 @@ class ValidateReturnsFalse(furu.Furu[int]):
         return False
 
 
-def test_load_or_create_recomputes_if_validate_returns_false(furu_tmp_root) -> None:
+def test_get_recomputes_if_validate_returns_false(furu_tmp_root) -> None:
     obj = ValidateReturnsFalse()
     obj.furu_dir.mkdir(parents=True, exist_ok=True)
 
@@ -176,5 +179,5 @@ def test_load_or_create_recomputes_if_validate_returns_false(furu_tmp_root) -> N
     furu.StateManager.update_state(obj.furu_dir, mutate)
     furu.StateManager.write_success_marker(obj.furu_dir, attempt_id="test")
 
-    assert obj.load_or_create() == 1
+    assert obj.get() == 1
     assert (obj.furu_dir / "validated.txt").exists()

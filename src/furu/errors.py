@@ -30,6 +30,14 @@ class FuruError(Exception):
         return "\n".join(lines)
 
 
+class FuruExecutionError(FuruError):
+    """Raised when executor wiring or scheduling fails."""
+
+
+class FuruValidationError(FuruError):
+    """Raised by `_validate()` to indicate an invalid or missing artifact."""
+
+
 class FuruWaitTimeout(FuruError):
     """Raised when waiting for a result exceeds _max_wait_time_sec."""
 
@@ -113,3 +121,11 @@ class FuruMigrationRequired(FuruError):
         if self.state_path is not None:
             msg += f"\n\nState file: {self.state_path}"
         return msg
+
+
+class FuruMissingArtifact(FuruError):
+    """Raised when a dependency is missing in executor mode."""
+
+
+class FuruSpecMismatch(FuruError):
+    """Raised when executor spec keys do not match."""

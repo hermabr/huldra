@@ -147,7 +147,7 @@ class Train(furu.Furu[Path]):
     data: Data  # Accepts any Data subclass
 
     def _create(self) -> Path:
-        data_path = self.data.load_or_create()  # Works with any Data
+        data_path = self.data.get()  # Works with any Data
         return self.furu_dir / "model.bin"
 
     def _load(self) -> Path:

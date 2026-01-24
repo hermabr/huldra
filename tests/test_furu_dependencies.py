@@ -172,14 +172,14 @@ def test_dependencies_spec_rejects_non_furu_fields(furu_tmp_root) -> None:
 
 def test_hash_includes_dependency_spec(monkeypatch) -> None:
     collection = DependencyCollection(n_tasks=1, base_task=DependencyTask(value=0))
-    original_hash = collection._furu_hash
+    original_hash = collection.furu_hash
 
     def alt_dependencies(self) -> DependencySpec:
         return [DependencyTask(value=99)]
 
     monkeypatch.setattr(DependencyCollection, "_dependencies", alt_dependencies)
 
-    assert collection._furu_hash != original_hash
+    assert collection.furu_hash != original_hash
 
 
 def test_hash_ignores_nested_dependencies() -> None:
@@ -188,18 +188,18 @@ def test_hash_ignores_nested_dependencies() -> None:
     root = DependencyLayerOne(layer_two=layer_two)
 
     hashes = root._dependency_hashes()
-    expected = sorted({layer_two._furu_hash, DependencyTask(value=3)._furu_hash})
+    expected = sorted({layer_two.furu_hash, DependencyTask(value=3).furu_hash})
 
     assert hashes == expected
 
 
 def test_hash_ignores_duplicate_dependencies(monkeypatch) -> None:
     holder = DuplicateDependencyHolder()
-    original_hash = holder._furu_hash
+    original_hash = holder.furu_hash
 
     def unique_dependencies(self) -> DependencySpec:
         return [DependencyTask(value=1)]
 
     monkeypatch.setattr(DuplicateDependencyHolder, "_dependencies", unique_dependencies)
 
-    assert holder._furu_hash == original_hash
+    assert holder.furu_hash == original_hash

@@ -25,7 +25,7 @@ The `[dashboard]` extra includes the web dashboard. Omit it for the core library
 1. Subclass `furu.Furu[T]`
 2. Implement `_create(self) -> T` (compute and write to `self.furu_dir`)
 3. Implement `_load(self) -> T` (load from `self.furu_dir`)
-4. Call `load_or_create()`
+4. Call `get()`
 
 ```python
 # my_project/pipelines.py
@@ -56,10 +56,10 @@ class TrainModel(furu.Furu[Path]):
 from my_project.pipelines import TrainModel
 
 # First call: runs _create(), caches result
-artifact = TrainModel(lr=3e-4, steps=5000).load_or_create()
+artifact = TrainModel(lr=3e-4, steps=5000).get()
 
 # Second call with same config: loads from cache via _load()
-artifact = TrainModel(lr=3e-4, steps=5000).load_or_create()
+artifact = TrainModel(lr=3e-4, steps=5000).get()
 ```
 
 > **Tip:** Define Furu classes in importable modules (not `__main__`); the artifact namespace is derived from the class's module + qualified name.
@@ -77,7 +77,7 @@ Each `Furu` instance maps deterministically to a directory based on its config:
 - **namespace**: Derived from the class's module + qualified name (e.g., `my_project.pipelines/TrainModel`)
 - **hash**: Computed from the object's config values using Blake2s
 
-When you call `load_or_create()`:
+When you call `get()`:
 1. If no cached result exists → run `_create()`, save state as "success"
 2. If cached result exists → run `_load()` to retrieve it
 3. If another process is running → wait for it to finish, then load
@@ -104,13 +104,65 @@ class TrainTextModel(furu.Furu[str]):
     dataset: Dataset = furu.chz.field(default_factory=Dataset)
 
     def _create(self) -> str:
-        data = self.dataset.load_or_create()  # Triggers Dataset cache
+        data = self.dataset.get()  # Triggers Dataset cache
         (self.furu_dir / "model.txt").write_text(f"trained on:\n{data}")
         return "trained"
 
     def _load(self) -> str:
         return (self.furu_dir / "model.txt").read_text()
 ```
+
+### Executors (Local + Slurm)
+
+Use the execution helpers for batch runs and cluster scheduling:
+
+```python
+from furu.execution import run_local
+
+run_local(
+    [TrainModel(lr=3e-4, steps=5000), TrainModel(lr=1e-3, steps=2000)],
+    max_workers=8,
+    window_size="bfs",
+)
+```
+
+```python
+from furu.execution import SlurmSpec, submit_slurm_dag
+
+specs = {
+    "default": SlurmSpec(partition="cpu", cpus=8, mem_gb=32, time_min=120),
+    "gpu": SlurmSpec(partition="gpu", gpus=1, cpus=8, mem_gb=64, time_min=720),
+}
+
+submit_slurm_dag([TrainModel(lr=3e-4, steps=5000)], specs=specs)
+```
+
+```python
+from furu.execution import run_slurm_pool
+
+run_slurm_pool(
+    [TrainModel(lr=3e-4, steps=5000)],
+    specs=specs,
+    max_workers_total=50,
+    window_size="bfs",
+)
+```
+
+Submitit logs are stored under `<FURU_PATH>/submitit` by default. Override with
+`FURU_SUBMITIT_PATH` when you want a different logs root.
+
+### Breaking Changes and Executor Semantics
+
+- `load_or_create()` is removed; use `get()` exclusively.
+- `get()` no longer accepts per-call `retry_failed` overrides. Configure retries via
+  `FURU_RETRY_FAILED` or `FURU_CONFIG.retry_failed`.
+- Executor runs (`run_local`, `run_slurm_pool`, `submit_slurm_dag`) fail fast if a
+  dependency is FAILED while `retry_failed` is disabled; with retries enabled, failed
+  compute nodes are retried (bounded by `FURU_MAX_COMPUTE_RETRIES` retries).
+- Pool protocol/queue failures (invalid payloads, spec mismatch, missing artifacts) are
+  fatal even when `retry_failed` is enabled; only compute failures are retried.
+- `FURU_ALWAYS_RERUN` causes matching nodes to recompute once per executor run, but
+  repeated references in the same run reuse that result.
 
 ### Storage Structure
 
@@ -157,7 +209,7 @@ class MyExperiments(furu.FuruList[TrainModel]):
 
 # Iterate over all experiments
 for exp in MyExperiments:
-    exp.load_or_create()
+    exp.get()
 
 # Access by name
 exp = MyExperiments.by_name("baseline")
@@ -172,14 +224,17 @@ for name, exp in MyExperiments.items():
 
 ### Custom Validation
 
-Override `_validate()` to add custom cache invalidation logic:
+Override `_validate()` to add custom cache invalidation logic. Return False or
+raise `furu.FuruValidationError` to force re-computation. In executor planning,
+any other exception is logged and treated as invalid (no crash); in interactive
+`exists()` calls, exceptions still surface:
 
 ```python
 class ModelWithValidation(furu.Furu[Path]):
     checkpoint_name: str = "model.pt"
 
     def _validate(self) -> bool:
-        # Return False to force re-computation
+        # Return False (or raise FuruValidationError) to force re-computation
         ckpt = self.furu_dir / self.checkpoint_name
         return ckpt.exists() and ckpt.stat().st_size > 0
 
@@ -201,7 +256,7 @@ if obj.exists():
 
 # Get metadata without triggering computation
 metadata = obj.get_metadata()
-print(f"Hash: {obj._furu_hash}")
+print(f"Hash: {obj.furu_hash}")
 print(f"Dir: {obj.furu_dir}")
 ```
 
@@ -232,7 +287,7 @@ class LargeDataProcessor(furu.Furu[Path]):
     def _create(self) -> Path:
         # self.raw_dir is shared across all configs
         # Create a subfolder for isolation if needed
-        my_raw = self.raw_dir / self._furu_hash
+        my_raw = self.raw_dir / self.furu_hash
         my_raw.mkdir(exist_ok=True)
         
         large_file = my_raw / "huge_dataset.bin"
@@ -284,8 +339,8 @@ HHMMSS file.py:line message
 
 Furu emits status messages like:
 ```
-load_or_create TrainModel abc123def (missing->create)
-load_or_create TrainModel abc123def (success->load)
+get TrainModel abc123def (missing->create)
+get TrainModel abc123def (success->load)
 ```
 
 ### Explicit Setup
@@ -306,7 +361,7 @@ logger = furu.get_logger()
 from furu import FuruComputeError, FuruWaitTimeout, FuruLockNotAcquired
 
 try:
-    result = obj.load_or_create()
+    result = obj.get()
 except FuruComputeError as e:
     print(f"Computation failed: {e}")
     print(f"State file: {e.state_path}")
@@ -317,8 +372,8 @@ except FuruLockNotAcquired:
     print("Could not acquire lock")
 ```
 
-By default, failed artifacts are retried on the next `load_or_create()` call. Set
-`FURU_RETRY_FAILED=0` or pass `retry_failed=False` to keep failures sticky.
+By default, failed artifacts are retried on the next `get()` call. Set
+`FURU_RETRY_FAILED=0` to keep failures sticky.
 
 `FURU_MAX_WAIT_SECS` overrides the per-class `_max_wait_time_sec` (default 600s)
 timeout used when waiting for compute locks before raising `FuruWaitTimeout`.
@@ -330,27 +385,8 @@ and `furu.log`.
 
 ## Submitit Integration
 
-Run computations on SLURM clusters via [submitit](https://github.com/facebookincubator/submitit):
-
-```python
-import submitit
-import furu
-
-executor = submitit.AutoExecutor(folder="submitit_logs")
-executor.update_parameters(
-    timeout_min=60,
-    slurm_partition="gpu",
-    gpus_per_node=1,
-)
-
-# Submit job and return immediately
-job = my_furu_obj.load_or_create(executor=executor)
-
-# Job ID is tracked in .furu/state.json
-print(job.job_id)
-```
-
-Furu handles preemption, requeuing, and state tracking automatically.
+Furu includes a `SubmititAdapter` for integrating submitit executors with the
+state system. Executor helpers in `furu.execution` handle submission workflows.
 
 ## Dashboard
 
@@ -408,6 +444,7 @@ The `/api/experiments` endpoint supports:
 | `FURU_IGNORE_DIFF` | `false` | Skip embedding git diff in metadata |
 | `FURU_ALWAYS_RERUN` | `""` | Comma-separated class qualnames to always rerun (use `ALL` to bypass cache globally; cannot combine with other entries; entries must be importable) |
 | `FURU_RETRY_FAILED` | `true` | Retry failed artifacts by default (set to `0` to keep failures sticky) |
+| `FURU_MAX_COMPUTE_RETRIES` | `3` | Maximum compute retries per node after the first failure |
 | `FURU_POLL_INTERVAL_SECS` | `10` | Polling interval for queued/running jobs |
 | `FURU_MAX_WAIT_SECS` | unset | Override wait timeout (falls back to `_max_wait_time_sec`, default 600s) |
 | `FURU_WAIT_LOG_EVERY_SECS` | `10` | Interval between "waiting" log messages |

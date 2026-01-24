@@ -35,9 +35,9 @@ def test_metadata_roundtrip_and_get_metadata(furu_tmp_root, monkeypatch) -> None
     with pytest.raises(FileNotFoundError):
         obj.get_metadata()
 
-    assert obj.load_or_create() == 42
+    assert obj.get() == 42
     meta = obj.get_metadata()
-    assert meta.furu_hash == obj._furu_hash
+    assert meta.furu_hash == obj.furu_hash
     assert meta.furu_obj["value"] == 42
     assert meta.git_commit == "<test>"
 

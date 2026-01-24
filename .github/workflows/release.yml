@@ -68,17 +68,9 @@ jobs:
         if: steps.tag.outputs.should_release == 'true'
         run: make dashboard-install-e2e
 
-      - name: Build frontend
-        if: steps.tag.outputs.should_release == 'true'
-        run: make frontend-build
-
-      - name: Run tests
-        if: steps.tag.outputs.should_release == 'true'
-        run: make test-all
-
       - name: Build package
         if: steps.tag.outputs.should_release == 'true'
-        run: uv build
+        run: make build
 
       - name: Create tag
         if: steps.tag.outputs.should_release == 'true'

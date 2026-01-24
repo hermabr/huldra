@@ -43,7 +43,7 @@ from furu.storage import (
 
 def _create_migrated_aliases() -> PrepareDataset:
     dataset_old = PrepareDataset(name="mnist")
-    dataset_old.load_or_create()
+    dataset_old.get()
 
     def find_candidate(default_values: dict[str, str]):
         candidates = furu.find_migration_candidates(
@@ -180,12 +180,12 @@ def generate_test_data(data_root: Path) -> None:
 
     # Dataset 1: default toy dataset
     dataset_toy = PrepareDataset(name="toy")
-    dataset_toy.load_or_create()
+    dataset_toy.get()
     print(f"  Created: {dataset_toy.__class__.__name__} (toy)")
 
     # Dataset 2: MNIST dataset
     dataset_mnist = PrepareDataset(name="mnist")
-    dataset_mnist.load_or_create()
+    dataset_mnist.get()
     print(f"  Created: {dataset_mnist.__class__.__name__} (mnist)")
 
     # Migrated alias dataset (mnist -> mnist-v2)
@@ -265,12 +265,12 @@ def generate_test_data(data_root: Path) -> None:
 
     # Training model on toy dataset
     train_toy = TrainModel(lr=0.001, steps=1000, dataset=dataset_toy)
-    train_toy.load_or_create()
+    train_toy.get()
     print(f"  Created: {train_toy.__class__.__name__} (toy, lr=0.001)")
 
     # Text model training
     text_model = TrainTextModel(dataset=dataset_toy)
-    text_model.load_or_create()
+    text_model.get()
     print(f"  Created: {text_model.__class__.__name__}")
 
     # 2. Mock experiments with different states (don't run _create)
@@ -304,12 +304,12 @@ def generate_test_data(data_root: Path) -> None:
 
     # Another successful text model with different params
     text_model2 = TrainTextModel(dataset=dataset_mnist)
-    text_model2.load_or_create()
+    text_model2.get()
     print(f"  Created: {text_model2.__class__.__name__} (mnist)")
 
     # Additional training run
     train_extra = TrainModel(lr=0.005, steps=2000, dataset=dataset_toy)
-    train_extra.load_or_create()
+    train_extra.get()
     print(f"  Created: {train_extra.__class__.__name__} (toy, lr=0.005)")
 
     print("\nGenerated 14 experiments total")

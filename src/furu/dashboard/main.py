@@ -5,11 +5,12 @@ from pathlib import Path
 
 import typer
 import uvicorn
-from fastapi import FastAPI
+from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 
+from . import __version__
 from .api.routes import router as api_router
 
 
@@ -36,7 +37,7 @@ def create_app(*, serve_frontend: bool = False) -> FastAPI:
     app = FastAPI(
         title="Furu Dashboard",
         description="Monitoring dashboard for Furu experiments",
-        version="0.1.0",
+        version=__version__,
     )
 
     # CORS middleware for development
@@ -64,7 +65,13 @@ def create_app(*, serve_frontend: bool = False) -> FastAPI:
         @app.get("/{full_path:path}")
         async def serve_spa(full_path: str) -> FileResponse:
             """Serve the React SPA for all non-API routes."""
-            file_path = frontend_dir / full_path
+            requested = Path(full_path)
+            if ".." in requested.parts:
+                raise HTTPException(status_code=404, detail="Not found")
+            frontend_root = frontend_dir.resolve()
+            file_path = (frontend_dir / requested).resolve()
+            if not file_path.is_relative_to(frontend_root):
+                raise HTTPException(status_code=404, detail="Not found")
             if file_path.is_file() and not full_path.startswith("api"):
                 return FileResponse(file_path)
             return FileResponse(frontend_dir / "index.html")

@@ -13,7 +13,7 @@ def main() -> None:
     furu.FURU_CONFIG.ignore_git_diff = True
 
     model = TrainTextModel(dataset=PrepareDataset(name="toy"))
-    out = model.load_or_create()
+    out = model.get()
 
     print("model output:", out)
     print("model dir:", model.furu_dir)

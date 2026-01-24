@@ -1,5 +1,6 @@
 import json
 import socket
+from pathlib import Path
 import threading
 import time
 
@@ -51,6 +52,36 @@ def test_locks_are_exclusive(furu_tmp_root, tmp_path) -> None:
 
     furu.StateManager.release_lock(fd1, lock_path)
     assert lock_path.exists() is False
+
+
+def test_update_state_timeout_keeps_lock(furu_tmp_root, tmp_path, monkeypatch) -> None:
+    directory = tmp_path / "obj"
+    directory.mkdir()
+    lock_path = furu.StateManager.get_lock_path(directory, furu.StateManager.STATE_LOCK)
+    lock_path.parent.mkdir(parents=True, exist_ok=True)
+    lock_path.write_text(
+        json.dumps({"pid": 99999, "host": "other", "created_at": "x", "lock_id": "x"})
+        + "\n"
+    )
+
+    def raise_timeout(
+        path: Path,
+        *,
+        timeout_sec: float = 5.0,
+        stale_after_sec: float = 60.0,
+    ) -> int:
+        raise TimeoutError("Timeout acquiring lock")
+
+    monkeypatch.setattr(
+        furu.StateManager,
+        "_acquire_lock_blocking",
+        staticmethod(raise_timeout),
+    )
+
+    with pytest.raises(TimeoutError):
+        furu.StateManager.update_state(directory, lambda state: None)
+
+    assert lock_path.exists()
 
 
 def test_reconcile_marks_dead_local_attempt_as_crashed(furu_tmp_root, tmp_path) -> None:

@@ -28,17 +28,17 @@ class SortedManifest(Manifest):
 
 def test_furu_subclass_can_override_create_and_inherit_load(furu_tmp_root) -> None:
     base = Manifest(items=["b", "a"])
-    assert base.load_or_create() == ["b", "a"]
+    assert base.get() == ["b", "a"]
     assert base._create_calls == 1
     assert base._load_calls == 0
-    assert base.load_or_create() == ["b", "a"]
+    assert base.get() == ["b", "a"]
     assert base._create_calls == 1
     assert base._load_calls == 1
 
     derived = SortedManifest(items=["b", "a"])
-    assert derived.load_or_create() == ["a", "b"]
+    assert derived.get() == ["a", "b"]
     assert derived._create_calls == 1
     assert derived._load_calls == 0
-    assert derived.load_or_create() == ["a", "b"]
+    assert derived.get() == ["a", "b"]
     assert derived._create_calls == 1
     assert derived._load_calls == 1

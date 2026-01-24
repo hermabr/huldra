@@ -17,7 +17,7 @@ def test_train_with_data_a(furu_tmp_root) -> None:
     data = DataA(name="dataset_a", source_url="http://example.com/dataset_a")
     train = Train(data=data, epochs=5)
 
-    result = train.load_or_create()
+    result = train.get()
 
     # Verify training output
     content = json.loads(result.read_text())
@@ -27,7 +27,7 @@ def test_train_with_data_a(furu_tmp_root) -> None:
 
     # Verify data was created
     assert data.exists()
-    data_content = json.loads(data.load_or_create().read_text())
+    data_content = json.loads(data.get().read_text())
     assert data_content["type"] == "A"
     assert data_content["url"] == "http://example.com/dataset_a"
 
@@ -37,7 +37,7 @@ def test_train_with_data_b(furu_tmp_root) -> None:
     data = DataB(name="dataset_b", local_path="/data/local/b")
     train = Train(data=data, epochs=20)
 
-    result = train.load_or_create()
+    result = train.get()
 
     # Verify training output
     content = json.loads(result.read_text())
@@ -47,7 +47,7 @@ def test_train_with_data_b(furu_tmp_root) -> None:
 
     # Verify data was created
     assert data.exists()
-    data_content = json.loads(data.load_or_create().read_text())
+    data_content = json.loads(data.get().read_text())
     assert data_content["type"] == "B"
     assert data_content["path"] == "/data/local/b"
 
@@ -66,8 +66,8 @@ def test_same_train_different_data_produces_different_hashes(furu_tmp_root) -> N
     assert hash_a != hash_b
 
     # Both should work
-    result_a = train_a.load_or_create()
-    result_b = train_b.load_or_create()
+    result_a = train_a.get()
+    result_b = train_b.get()
 
     content_a = json.loads(result_a.read_text())
     content_b = json.loads(result_b.read_text())
@@ -87,12 +87,12 @@ def test_data_subclasses_have_different_hashes(furu_tmp_root) -> None:
 
 
 def test_train_caches_correctly_with_polymorphic_data(furu_tmp_root) -> None:
-    """Second load_or_create should use _load, not _create."""
+    """Second get should use _load, not _create."""
     data = DataA(name="cached_test")
     train = Train(data=data, epochs=3)
 
     # First call creates
-    result1 = train.load_or_create()
+    result1 = train.get()
     assert train.exists()
 
     # Modify the file to verify we're loading, not recreating
@@ -101,18 +101,18 @@ def test_train_caches_correctly_with_polymorphic_data(furu_tmp_root) -> None:
     result1.write_text(json.dumps(content))
 
     # Second call should load (returning modified content)
-    result2 = train.load_or_create()
+    result2 = train.get()
     content2 = json.loads(result2.read_text())
     assert content2.get("marker") == "modified"
 
 
 def test_abstract_data_base_class_raises_not_implemented(furu_tmp_root) -> None:
-    """Calling load_or_create on abstract Data base should raise."""
+    """Calling get on abstract Data base should raise."""
     # Data is abstract - _create raises NotImplementedError
     data = Data(name="abstract")
 
     try:
-        data.load_or_create()
+        data.get()
         raise AssertionError("Expected NotImplementedError")
     except NotImplementedError:
         pass

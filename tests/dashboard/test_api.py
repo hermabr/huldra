@@ -649,7 +649,7 @@ def test_dag_endpoint_edge_relationships(
 def test_dag_endpoint_with_real_dependencies(
     client: TestClient, populated_with_dependencies: Path
 ) -> None:
-    """Test DAG endpoint with experiments created via load_or_create."""
+    """Test DAG endpoint with experiments created via get."""
     response = client.get("/api/dag")
     assert response.status_code == 200
     data = response.json()
@@ -766,7 +766,7 @@ def test_relationships_endpoint_has_children(
 def test_relationships_endpoint_with_real_dependencies(
     client: TestClient, populated_with_dependencies: Path
 ) -> None:
-    """Test relationships endpoint with experiments created via load_or_create."""
+    """Test relationships endpoint with experiments created via get."""
     # Get the TrainModel experiment
     list_response = client.get(
         "/api/experiments?namespace=dashboard.pipelines.TrainModel"

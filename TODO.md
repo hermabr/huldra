@@ -61,6 +61,7 @@
         - [ ] i should still support giving it some type safe thing
     - [ ] move the if self.exsits() and then load to very early (and maybe also speed it up even more after benchmarking, such as checking if .success file exists)
     - [ ] handle something was running but then later it crashes
+    - [ ] Consider expanding build_plan() to expand dependencies for IN_PROGRESS/FAILED nodes when used for diagnostics/inspection (not just scheduling)
     - [ ] decide if there is a better name than force for .get that is more descriptive than force
     - [ ] rename window_size and "dfs"/"bfs" to something better
     - [ ] support batching for slurm job submissions (both for the per-job and for the mass-parallel)
@@ -81,6 +82,8 @@
         - [ ] based on root node priority?
     - [ ] put the todos within a single spec in some ranked order (if stable, do something like namespace priority, class name priority)
         - [ ] maybe also the root node priority as the first entry?
+    - [ ] for local, rather than having number of parallel jobs, have resources required by each job, for instance only one gpu job, but can have multiple cpu jobs in parallel
+    - [ ] dashboard for experiment runner
 
 ### Submitit
 

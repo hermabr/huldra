@@ -400,15 +400,41 @@ class StateManager:
 
     @classmethod
     def release_lock(cls, fd: int | None, lock_path: Path) -> None:
-        if fd is not None:
+        """Release a lock acquired via :meth:`try_lock`.
+
+        We best-effort avoid deleting a lock that was broken and replaced by
+        another process by verifying the inode of the open fd matches the
+        current lock_path inode before unlinking.
+        """
+        if fd is None:
+            return
+        try:
+            fd_stat = os.fstat(fd)
+        except OSError:
+            fd_stat = None
+        try:
+            path_stat = lock_path.stat()
+        except FileNotFoundError:
+            path_stat = None
+        try:
+            if (
+                fd_stat is not None
+                and path_stat is not None
+                and fd_stat.st_ino == path_stat.st_ino
+                and fd_stat.st_dev == path_stat.st_dev
+            ):
+                lock_path.unlink(missing_ok=True)
+        finally:
             os.close(fd)
-        lock_path.unlink(missing_ok=True)
 
     @classmethod
     def _read_lock_info(cls, lock_path: Path) -> _LockInfoDict | None:
         if not lock_path.is_file():
             return None
-        text = lock_path.read_text().strip()
+        try:
+            text = lock_path.read_text().strip()
+        except FileNotFoundError:
+            return None
         if not text:
             return None
         lines = text.splitlines()
@@ -978,6 +1004,7 @@ def compute_lock(
     wait_log_every_sec: float = 10.0,
     reconcile_fn: Callable[[Path], None] | None = None,
     allow_failed: bool = False,
+    allow_success: bool = False,
 ) -> Generator[ComputeLockContext, None, None]:
     """
     Context manager that atomically acquires lock + records attempt + starts heartbeat.
@@ -1002,6 +1029,7 @@ def compute_lock(
         wait_log_every_sec: Interval between "waiting for lock" log messages
         reconcile_fn: Optional function to call to reconcile stale attempts
         allow_failed: Allow recomputation even if state is failed
+        allow_success: Allow recomputation even if state is successful
 
     Yields:
         ComputeLockContext with attempt_id and stop_heartbeat callable
@@ -1097,7 +1125,7 @@ def compute_lock(
         lock_fd = StateManager.try_lock(lock_path)
         if lock_fd is not None:
             state = StateManager.read_state(directory)
-            if isinstance(state.result, _StateResultSuccess):
+            if isinstance(state.result, _StateResultSuccess) and not allow_success:
                 StateManager.release_lock(lock_fd, lock_path)
                 raise FuruLockNotAcquired(
                     "Cannot acquire lock: experiment already succeeded"
@@ -1117,7 +1145,7 @@ def compute_lock(
                 if reconcile_fn is not None:
                     reconcile_fn(directory)
                     state = StateManager.read_state(directory)
-                if isinstance(state.result, _StateResultSuccess):
+                if isinstance(state.result, _StateResultSuccess) and not allow_success:
                     raise FuruLockNotAcquired(
                         "Cannot acquire lock: experiment already succeeded"
                     )
@@ -1151,7 +1179,7 @@ def compute_lock(
         attempt = state.attempt
 
         # If result is terminal, no point waiting
-        if isinstance(state.result, _StateResultSuccess):
+        if isinstance(state.result, _StateResultSuccess) and not allow_success:
             raise FuruLockNotAcquired(
                 "Cannot acquire lock: experiment already succeeded"
             )
