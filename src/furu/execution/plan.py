@@ -36,7 +36,7 @@ class DependencyPlan:
 
 
 def _classify(obj: Furu, completed_hashes: set[str] | None) -> Status:
-    if completed_hashes is not None and obj._furu_hash in completed_hashes:
+    if completed_hashes is not None and obj.furu_hash in completed_hashes:
         return "DONE"
     if obj._exists_quiet() and not obj._always_rerun():
         return "DONE"
@@ -65,7 +65,7 @@ def build_plan(
 
     while stack:
         obj = stack.pop()
-        digest = obj._furu_hash
+        digest = obj.furu_hash
         if digest in seen:
             continue
         seen.add(digest)
@@ -85,7 +85,7 @@ def build_plan(
             continue
 
         deps = obj._get_dependencies(recursive=False)
-        node.deps_all = {dep._furu_hash for dep in deps}
+        node.deps_all = {dep.furu_hash for dep in deps}
         for dep in deps:
             stack.append(dep)
 
@@ -186,21 +186,21 @@ def reconcile_in_progress(
     ] = []
     for node in plan.nodes.values():
         if node.status != "IN_PROGRESS":
-            _MISSING_TIMESTAMP_SEEN.pop(node.obj._furu_hash, None)
+            _MISSING_TIMESTAMP_SEEN.pop(node.obj.furu_hash, None)
             continue
         state = StateManager.reconcile(node.obj._base_furu_dir())
         attempt = state.attempt
         if not isinstance(attempt, (_StateAttemptQueued, _StateAttemptRunning)):
-            _MISSING_TIMESTAMP_SEEN.pop(node.obj._furu_hash, None)
+            _MISSING_TIMESTAMP_SEEN.pop(node.obj.furu_hash, None)
             continue
         if stale_timeout_sec <= 0:
             continue
-        name = f"{node.obj.__class__.__name__}({node.obj._furu_hash})"
+        name = f"{node.obj.__class__.__name__}({node.obj.furu_hash})"
         age = _attempt_age_sec(
             attempt,
             updated_at=state.updated_at,
             stale_timeout_sec=stale_timeout_sec,
-            digest=node.obj._furu_hash,
+            digest=node.obj.furu_hash,
             name=name,
         )
         if age is None or age < stale_timeout_sec:
@@ -211,7 +211,7 @@ def reconcile_in_progress(
         return False
 
     names = ", ".join(
-        f"{node.obj.__class__.__name__}({node.obj._furu_hash})"
+        f"{node.obj.__class__.__name__}({node.obj.furu_hash})"
         for node, _attempt in stale_attempts
     )
     if not FURU_CONFIG.retry_failed:
@@ -234,5 +234,5 @@ def reconcile_in_progress(
             },
             reason="stale_timeout",
         )
-        _MISSING_TIMESTAMP_SEEN.pop(node.obj._furu_hash, None)
+        _MISSING_TIMESTAMP_SEEN.pop(node.obj.furu_hash, None)
     return stale_detected

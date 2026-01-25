@@ -207,7 +207,7 @@ class Furu[T](ABC):
 
     def _get_dependencies(self: Self, *, recursive: bool = True) -> list["Furu"]:
         """Collect Furu dependencies from fields and `_dependencies()`."""
-        seen = {self._furu_hash}
+        seen = {self.furu_hash}
         dependencies: list[Furu] = []
         _collect_dependencies(self, dependencies, seen, recursive=recursive)
         return dependencies
@@ -221,7 +221,7 @@ class Furu[T](ABC):
         for dependency in dependencies:
             if dependency is self:
                 raise ValueError("Furu dependencies cannot include self")
-            digests.add(dependency._furu_hash)
+            digests.add(dependency.furu_hash)
         return sorted(digests)
 
     def _invalidate_cached_success(self: Self, directory: Path, *, reason: str) -> None:
@@ -229,7 +229,7 @@ class Furu[T](ABC):
         logger.warning(
             "invalidate %s %s %s (%s)",
             self.__class__.__name__,
-            self._furu_hash,
+            self.furu_hash,
             directory,
             reason,
         )
@@ -262,21 +262,9 @@ class Furu[T](ABC):
         if isinstance(state.result, _StateResultSuccess):
             self._invalidate_cached_success(directory, reason="always_rerun enabled")
 
-    @property
+    @cached_property
     def furu_hash(self: Self) -> str:
         """Return the stable content hash for this Furu object."""
-        deps_token = id(type(self)._dependencies)
-        cache = getattr(self, "__dict__", None)
-        if isinstance(cache, dict):
-            cached_token = cache.get("_furu_hash_dependency_token")
-            if cached_token is not None and cached_token != deps_token:
-                cache.pop("_furu_hash", None)
-            cache["_furu_hash_dependency_token"] = deps_token
-        return self._furu_hash
-
-    @cached_property
-    def _furu_hash(self: Self) -> str:
-        """Compute hash of this object's content for storage identification."""
         return FuruSerializer.compute_hash(self)
 
     def _always_rerun(self: Self) -> bool:
@@ -289,7 +277,7 @@ class Furu[T](ABC):
 
     def _base_furu_dir(self: Self) -> Path:
         root = FURU_CONFIG.get_root(self.version_controlled)
-        return root / self.__class__._namespace() / self._furu_hash
+        return root / self.__class__._namespace() / self.furu_hash
 
     @property
     def furu_dir(self: Self) -> Path:
@@ -339,7 +327,7 @@ class Furu[T](ABC):
             logger.warning(
                 "exists %s -> false (validate invalid for %s: %s)",
                 directory,
-                f"{self.__class__.__name__}({self._furu_hash})",
+                f"{self.__class__.__name__}({self.furu_hash})",
                 exc,
             )
             return False
@@ -348,7 +336,7 @@ class Furu[T](ABC):
             logger.exception(
                 "exists %s -> false (validate crashed for %s: %s)",
                 directory,
-                f"{self.__class__.__name__}({self._furu_hash})",
+                f"{self.__class__.__name__}({self.furu_hash})",
                 exc,
             )
             return False
@@ -411,12 +399,12 @@ class Furu[T](ABC):
                 if force:
                     if (
                         ctx.current_node_hash is None
-                        or self._furu_hash != ctx.current_node_hash
+                        or self.furu_hash != ctx.current_node_hash
                     ):
                         raise FuruExecutionError(
                             "force=True not allowed: only the current node may compute in executor mode. "
                             f"current_node_hash={ctx.current_node_hash!r} "
-                            f"obj={self.__class__.__name__}({self._furu_hash})",
+                            f"obj={self.__class__.__name__}({self.furu_hash})",
                             hints=[
                                 "Declare this object as a dependency instead of calling dep.get(force=True).",
                                 "Inside executor mode, use get(force=True) only on the node being executed.",
@@ -438,7 +426,7 @@ class Furu[T](ABC):
                 if not force:
                     raise FuruMissingArtifact(
                         "Missing artifact "
-                        f"{self.__class__.__name__}({self._furu_hash}) in executor mode. "
+                        f"{self.__class__.__name__}({self.furu_hash}) in executor mode. "
                         f"Requested by {ctx.current_node_hash}. Declare it as a dependency."
                     )
 
@@ -469,7 +457,7 @@ class Furu[T](ABC):
                 logger.debug(
                     "dep: begin %s %s %s",
                     self.__class__.__name__,
-                    self._furu_hash,
+                    self.furu_hash,
                     self._base_furu_dir(),
                     extra=caller_info,
                 )
@@ -488,7 +476,7 @@ class Furu[T](ABC):
                     logger.debug(
                         "dep: end %s %s (%s)",
                         self.__class__.__name__,
-                        self._furu_hash,
+                        self.furu_hash,
                         "ok" if ok else "error",
                         extra=caller_info,
                     )
@@ -505,7 +493,7 @@ class Furu[T](ABC):
             logger.debug(
                 "dep: begin %s %s %s",
                 self.__class__.__name__,
-                self._furu_hash,
+                self.furu_hash,
                 self._base_furu_dir(),
                 extra=caller_info,
             )
@@ -638,7 +626,7 @@ class Furu[T](ABC):
                     logger.debug(
                         "get %s %s %s (%s)",
                         self.__class__.__name__,
-                        self._furu_hash,
+                        self.furu_hash,
                         directory,
                         decision,
                         extra={
@@ -661,7 +649,7 @@ class Furu[T](ABC):
                         logger.error(
                             "get %s %s (load failed)",
                             self.__class__.__name__,
-                            self._furu_hash,
+                            self.furu_hash,
                         )
                         raise FuruComputeError(
                             f"Failed to load result from {directory}",
@@ -698,7 +686,7 @@ class Furu[T](ABC):
                 logger.debug(
                     "dep: end %s %s (%s)",
                     self.__class__.__name__,
-                    self._furu_hash,
+                    self.furu_hash,
                     "ok" if ok else "error",
                     extra=caller_info,
                 )
@@ -733,7 +721,7 @@ class Furu[T](ABC):
         logger.info(
             "get %s %s",
             self.__class__.__name__,
-            self._furu_hash,
+            self.furu_hash,
             extra={
                 "furu_console_only": True,
                 "furu_action_color": action_color,
@@ -884,7 +872,7 @@ class Furu[T](ABC):
             logger.debug(
                 "submit: waiting for submit lock %s %s %s",
                 self.__class__.__name__,
-                self._furu_hash,
+                self.furu_hash,
                 directory,
             )
             time.sleep(0.5)
@@ -979,7 +967,7 @@ class Furu[T](ABC):
                     mode="executor",
                     spec_key=self._executor_spec_key(),
                     backend="submitit",
-                    current_node_hash=self._furu_hash,
+                    current_node_hash=self.furu_hash,
                 )
             )
             try:
@@ -1059,14 +1047,14 @@ class Furu[T](ABC):
                             logger.debug(
                                 "_create: begin %s %s %s",
                                 self.__class__.__name__,
-                                self._furu_hash,
+                                self.furu_hash,
                                 directory,
                             )
                             self._create()
                             logger.debug(
                                 "_create: ok %s %s %s",
                                 self.__class__.__name__,
-                                self._furu_hash,
+                                self.furu_hash,
                                 directory,
                             )
                             StateManager.write_success_marker(
@@ -1078,7 +1066,7 @@ class Furu[T](ABC):
                             logger.info(
                                 "_create ok %s %s",
                                 self.__class__.__name__,
-                                self._furu_hash,
+                                self.furu_hash,
                                 extra={"furu_console_only": True},
                             )
                         except Exception as e:
@@ -1086,7 +1074,7 @@ class Furu[T](ABC):
                                 logger.error(
                                     "_create failed %s %s %s",
                                     self.__class__.__name__,
-                                    self._furu_hash,
+                                    self.furu_hash,
                                     directory,
                                     extra={"furu_file_only": True},
                                 )
@@ -1095,7 +1083,7 @@ class Furu[T](ABC):
                                     "attempt failed (%s) %s %s %s",
                                     stage,
                                     self.__class__.__name__,
-                                    self._furu_hash,
+                                    self.furu_hash,
                                     directory,
                                     extra={"furu_file_only": True},
                                 )
@@ -1142,7 +1130,7 @@ class Furu[T](ABC):
                             f"backend {attempt.backend}"
                         )
                     hints = [
-                        f"Furu hash: {self._furu_hash}",
+                        f"Furu hash: {self.furu_hash}",
                         f"Directory: {directory}",
                         f"State file: {state_path}",
                         f"Attempt: {attempt_info}",
@@ -1245,7 +1233,7 @@ class Furu[T](ABC):
                     logger.debug(
                         "_create: begin %s %s %s",
                         self.__class__.__name__,
-                        self._furu_hash,
+                        self.furu_hash,
                         directory,
                     )
                     token = None
@@ -1257,7 +1245,7 @@ class Furu[T](ABC):
                                 mode="executor",
                                 spec_key=self._executor_spec_key(),
                                 backend="local",
-                                current_node_hash=self._furu_hash,
+                                current_node_hash=self.furu_hash,
                             )
                         )
                     try:
@@ -1268,7 +1256,7 @@ class Furu[T](ABC):
                     logger.debug(
                         "_create: ok %s %s %s",
                         self.__class__.__name__,
-                        self._furu_hash,
+                        self.furu_hash,
                         directory,
                     )
                     StateManager.write_success_marker(
@@ -1280,7 +1268,7 @@ class Furu[T](ABC):
                     logger.info(
                         "_create ok %s %s",
                         self.__class__.__name__,
-                        self._furu_hash,
+                        self.furu_hash,
                         extra={"furu_console_only": True},
                     )
                     return "success", True, result
@@ -1289,7 +1277,7 @@ class Furu[T](ABC):
                         logger.error(
                             "_create failed %s %s %s",
                             self.__class__.__name__,
-                            self._furu_hash,
+                            self.furu_hash,
                             directory,
                             extra={"furu_file_only": True},
                         )
@@ -1298,7 +1286,7 @@ class Furu[T](ABC):
                             "attempt failed (%s) %s %s %s",
                             stage,
                             self.__class__.__name__,
-                            self._furu_hash,
+                            self.furu_hash,
                             directory,
                             extra={"furu_file_only": True},
                         )
@@ -1410,7 +1398,7 @@ def _collect_dependencies(
     recursive: bool,
 ) -> None:
     for dependency in _direct_dependencies(obj):
-        digest = dependency._furu_hash
+        digest = dependency.furu_hash
         if digest in seen:
             continue
         seen.add(digest)
@@ -1564,7 +1552,7 @@ def _sorted_dependency_set(
 
 def _dependency_sort_key(value: DependencyScanValue) -> tuple[int, str]:
     if isinstance(value, Furu):
-        return (0, cast(str, value._furu_hash))
+        return (0, cast(str, value.furu_hash))
     return (1, f"{type(value).__name__}:{value!r}")
 
 

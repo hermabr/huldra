@@ -20,13 +20,12 @@ class Dummy(furu.Furu[int]):
         return json.loads((self.furu_dir / "value.json").read_text())
 
 
-def test_furu_hash_property_matches_private(furu_tmp_root) -> None:
+def test_furu_hash_is_stable(furu_tmp_root) -> None:
     obj = Dummy()
     first = obj.furu_hash
     second = obj.furu_hash
 
-    assert first == obj._furu_hash
-    assert second == obj._furu_hash
+    assert first == second
 
 
 def test_get_returns_create_result_without_load(furu_tmp_root) -> None:

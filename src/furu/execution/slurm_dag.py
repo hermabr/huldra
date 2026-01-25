@@ -117,7 +117,7 @@ def _wait_for_job_id(
             suffix = f" Last seen job_id={last_job_id}." if last_job_id else ""
             raise TimeoutError(
                 "Timed out waiting for submitit job_id for "
-                f"{obj.__class__.__name__} ({obj._furu_hash}).{suffix}"
+                f"{obj.__class__.__name__} ({obj.furu_hash}).{suffix}"
             )
 
         time.sleep(poll_interval_sec)
@@ -129,7 +129,7 @@ def _job_id_for_in_progress(obj: Furu) -> str:
     if attempt is None:
         raise RuntimeError(
             "Cannot wire Slurm DAG dependency for IN_PROGRESS "
-            f"{obj.__class__.__name__} ({obj._furu_hash}) without an attempt."
+            f"{obj.__class__.__name__} ({obj.furu_hash}) without an attempt."
         )
     if attempt.backend != "submitit":
         raise FuruExecutionError(
@@ -144,7 +144,7 @@ def _job_id_for_in_progress(obj: Furu) -> str:
     ):
         raise FuruExecutionError(
             "Cannot wire afterok dependency to a terminal non-success dependency. "
-            f"Dependency {obj.__class__.__name__} ({obj._furu_hash}) status={attempt.status}."
+            f"Dependency {obj.__class__.__name__} ({obj.furu_hash}) status={attempt.status}."
         )
 
     job_id = attempt.scheduler.get("job_id")
@@ -163,7 +163,7 @@ def _job_id_for_in_progress(obj: Furu) -> str:
         if attempt2.status != "success" or isinstance(state2.result, _StateResultFailed):
             raise FuruExecutionError(
                 "Cannot wire afterok dependency: dependency became terminal and did not succeed. "
-                f"Dependency {obj.__class__.__name__} ({obj._furu_hash}) status={attempt2.status} "
+                f"Dependency {obj.__class__.__name__} ({obj.furu_hash}) status={attempt2.status} "
                 f"job_id={resolved}."
             )
 
@@ -190,7 +190,7 @@ def submit_slurm_dag(
     failed = [node for node in plan.nodes.values() if node.status == "FAILED"]
     if failed:
         names = ", ".join(
-            f"{node.obj.__class__.__name__}({node.obj._furu_hash})" for node in failed
+            f"{node.obj.__class__.__name__}({node.obj.furu_hash})" for node in failed
         )
         raise RuntimeError(f"Cannot submit slurm DAG with failed dependencies: {names}")
 
@@ -198,7 +198,7 @@ def submit_slurm_dag(
     job_id_by_hash: dict[str, str] = {}
     root_job_ids: dict[str, str] = {}
 
-    root_hashes = {root._furu_hash for root in roots}
+    root_hashes = {root.furu_hash for root in roots}
 
     for digest in order:
         node = plan.nodes[digest]
@@ -254,7 +254,7 @@ def submit_slurm_dag(
             root_job_ids[digest] = job_id
 
     for root in roots:
-        digest = root._furu_hash
+        digest = root.furu_hash
         if digest in root_job_ids:
             continue
         node = plan.nodes.get(digest)

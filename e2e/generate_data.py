@@ -54,7 +54,7 @@ def _create_migrated_aliases() -> PrepareDataset:
             default_values=default_values,
             drop_fields=["name"],
         )
-        target_hash = dataset_old._furu_hash
+        target_hash = dataset_old.furu_hash
         candidates = [
             candidate
             for candidate in candidates
@@ -203,7 +203,7 @@ def generate_test_data(data_root: Path) -> None:
     copy_candidates = [
         candidate
         for candidate in candidates
-        if candidate.from_ref.furu_hash == dataset_old._furu_hash
+        if candidate.from_ref.furu_hash == dataset_old.furu_hash
     ]
     if not copy_candidates:
         raise ValueError("migration: no copy candidates found")
@@ -227,7 +227,7 @@ def generate_test_data(data_root: Path) -> None:
     move_candidates = [
         candidate
         for candidate in move_candidates
-        if candidate.from_ref.furu_hash == dataset_old._furu_hash
+        if candidate.from_ref.furu_hash == dataset_old.furu_hash
     ]
     if not move_candidates:
         raise ValueError("migration: no move candidates found")
