@@ -653,6 +653,7 @@ def test_migrate_conflict_skip_on_running(furu_tmp_root) -> None:
             "scheduler": {},
         }
 
+    StateManager.ensure_internal_dir(to_obj._base_furu_dir())
     StateManager.update_state(to_obj._base_furu_dir(), set_running)
 
     candidates = furu.find_migration_candidates(

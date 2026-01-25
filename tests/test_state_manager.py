@@ -17,7 +17,7 @@ from furu.storage.state import (
 
 def test_state_default_and_attempt_lifecycle(furu_tmp_root, tmp_path) -> None:
     directory = tmp_path / "obj"
-    directory.mkdir()
+    furu.StateManager.ensure_internal_dir(directory)
 
     state0 = furu.StateManager.read_state(directory)
     assert state0.schema_version == furu.StateManager.SCHEMA_VERSION
@@ -41,7 +41,7 @@ def test_state_default_and_attempt_lifecycle(furu_tmp_root, tmp_path) -> None:
 
 def test_locks_are_exclusive(furu_tmp_root, tmp_path) -> None:
     directory = tmp_path / "obj"
-    directory.mkdir()
+    furu.StateManager.ensure_internal_dir(directory)
     lock_path = furu.StateManager.get_lock_path(
         directory, furu.StateManager.COMPUTE_LOCK
     )
@@ -56,9 +56,8 @@ def test_locks_are_exclusive(furu_tmp_root, tmp_path) -> None:
 
 def test_update_state_timeout_keeps_lock(furu_tmp_root, tmp_path, monkeypatch) -> None:
     directory = tmp_path / "obj"
-    directory.mkdir()
+    furu.StateManager.ensure_internal_dir(directory)
     lock_path = furu.StateManager.get_lock_path(directory, furu.StateManager.STATE_LOCK)
-    lock_path.parent.mkdir(parents=True, exist_ok=True)
     lock_path.write_text(
         json.dumps({"pid": 99999, "host": "other", "created_at": "x", "lock_id": "x"})
         + "\n"
@@ -86,7 +85,7 @@ def test_update_state_timeout_keeps_lock(furu_tmp_root, tmp_path, monkeypatch) -
 
 def test_reconcile_marks_dead_local_attempt_as_crashed(furu_tmp_root, tmp_path) -> None:
     directory = tmp_path / "obj"
-    directory.mkdir()
+    furu.StateManager.ensure_internal_dir(directory)
 
     attempt_id = furu.StateManager.start_attempt_running(
         directory,
@@ -136,7 +135,7 @@ def test_state_warns_when_retrying_after_failure(
     pytest.importorskip("rich")
 
     directory = tmp_path / "obj"
-    directory.mkdir()
+    furu.StateManager.ensure_internal_dir(directory)
 
     attempt_id = furu.StateManager.start_attempt_running(
         directory,
@@ -173,7 +172,7 @@ def test_state_warns_when_restart_after_stale_pid(
     pytest.importorskip("rich")
 
     directory = tmp_path / "obj"
-    directory.mkdir()
+    furu.StateManager.ensure_internal_dir(directory)
 
     furu.StateManager.start_attempt_running(
         directory,
@@ -208,7 +207,7 @@ def test_compute_lock_acquires_lock_and_records_attempt(
 ) -> None:
     """Test that compute_lock atomically acquires lock and records attempt."""
     directory = tmp_path / "obj"
-    directory.mkdir()
+    furu.StateManager.ensure_internal_dir(directory)
 
     with compute_lock(
         directory,
@@ -237,7 +236,7 @@ def test_compute_lock_acquires_lock_and_records_attempt(
 def test_compute_lock_releases_on_exception(furu_tmp_root, tmp_path) -> None:
     """Test that compute_lock releases lock even when exception is raised."""
     directory = tmp_path / "obj"
-    directory.mkdir()
+    furu.StateManager.ensure_internal_dir(directory)
 
     lock_path = furu.StateManager.get_lock_path(
         directory, furu.StateManager.COMPUTE_LOCK
@@ -260,13 +259,12 @@ def test_compute_lock_releases_on_exception(furu_tmp_root, tmp_path) -> None:
 def test_compute_lock_cleans_orphaned_lock(furu_tmp_root, tmp_path) -> None:
     """Test that compute_lock cleans up orphaned lock files (lock exists but no active attempt)."""
     directory = tmp_path / "obj"
-    directory.mkdir()
+    furu.StateManager.ensure_internal_dir(directory)
 
     # Create an orphaned lock file (no corresponding attempt in state)
     lock_path = furu.StateManager.get_lock_path(
         directory, furu.StateManager.COMPUTE_LOCK
     )
-    lock_path.parent.mkdir(parents=True, exist_ok=True)
     lock_path.write_text(
         json.dumps(
             {
@@ -297,7 +295,7 @@ def test_compute_lock_cleans_orphaned_lock(furu_tmp_root, tmp_path) -> None:
 def test_compute_lock_raises_on_success_state(furu_tmp_root, tmp_path) -> None:
     """Test that compute_lock raises FuruLockNotAcquired if experiment already succeeded."""
     directory = tmp_path / "obj"
-    directory.mkdir()
+    furu.StateManager.ensure_internal_dir(directory)
 
     # Create a successful state
     attempt_id = furu.StateManager.start_attempt_running(
@@ -317,7 +315,6 @@ def test_compute_lock_raises_on_success_state(furu_tmp_root, tmp_path) -> None:
     lock_path = furu.StateManager.get_lock_path(
         directory, furu.StateManager.COMPUTE_LOCK
     )
-    lock_path.parent.mkdir(parents=True, exist_ok=True)
     lock_path.write_text(
         json.dumps({"pid": 99999, "host": "x", "created_at": "x", "lock_id": "x"})
         + "\n"
@@ -337,7 +334,7 @@ def test_compute_lock_raises_on_success_state(furu_tmp_root, tmp_path) -> None:
 def test_compute_lock_raises_on_failed_state(furu_tmp_root, tmp_path) -> None:
     """Test that compute_lock raises FuruLockNotAcquired when failed is sticky."""
     directory = tmp_path / "obj"
-    directory.mkdir()
+    furu.StateManager.ensure_internal_dir(directory)
 
     attempt_id = furu.StateManager.start_attempt_running(
         directory,
@@ -367,7 +364,7 @@ def test_compute_lock_allows_failed_state_with_override(
 ) -> None:
     """Test that compute_lock allows retry when allow_failed is set."""
     directory = tmp_path / "obj"
-    directory.mkdir()
+    furu.StateManager.ensure_internal_dir(directory)
 
     attempt_id = furu.StateManager.start_attempt_running(
         directory,
@@ -398,7 +395,7 @@ def test_compute_lock_allows_failed_state_with_override(
 def test_compute_lock_timeout(furu_tmp_root, tmp_path) -> None:
     """Test that compute_lock raises FuruWaitTimeout when max_wait_time_sec is exceeded."""
     directory = tmp_path / "obj"
-    directory.mkdir()
+    furu.StateManager.ensure_internal_dir(directory)
 
     # Start an attempt that holds the lock (simulating another process)
     furu.StateManager.start_attempt_running(
@@ -438,7 +435,7 @@ def test_compute_lock_timeout(furu_tmp_root, tmp_path) -> None:
 def test_compute_lock_is_exclusive(furu_tmp_root, tmp_path) -> None:
     """Test that two concurrent compute_lock calls are mutually exclusive."""
     directory = tmp_path / "obj"
-    directory.mkdir()
+    furu.StateManager.ensure_internal_dir(directory)
 
     results: list[str] = []
     errors: list[Exception] = []
@@ -486,7 +483,7 @@ def test_compute_lock_is_exclusive(furu_tmp_root, tmp_path) -> None:
 def test_compute_lock_waits_for_active_attempt(furu_tmp_root, tmp_path) -> None:
     """Test that compute_lock waits for an active attempt and lock to be released."""
     directory = tmp_path / "obj"
-    directory.mkdir()
+    furu.StateManager.ensure_internal_dir(directory)
 
     # Start an attempt with a long lease on a different host (so reconcile can't detect it as dead)
     furu.StateManager.start_attempt_running(
@@ -534,7 +531,7 @@ def test_compute_lock_waits_for_active_attempt(furu_tmp_root, tmp_path) -> None:
 def test_compute_lock_waits_for_queued_backend(furu_tmp_root, tmp_path) -> None:
     """Test that compute_lock waits for queued attempts from other backends."""
     directory = tmp_path / "obj"
-    directory.mkdir()
+    furu.StateManager.ensure_internal_dir(directory)
 
     attempt_id = furu.StateManager.start_attempt_queued(
         directory,
@@ -574,7 +571,7 @@ def test_compute_lock_waits_for_queued_backend(furu_tmp_root, tmp_path) -> None:
 def test_compute_lock_heartbeat_runs(furu_tmp_root, tmp_path) -> None:
     """Test that the heartbeat thread updates the lease while lock is held."""
     directory = tmp_path / "obj"
-    directory.mkdir()
+    furu.StateManager.ensure_internal_dir(directory)
 
     with compute_lock(
         directory,

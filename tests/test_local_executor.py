@@ -213,7 +213,7 @@ def test_run_local_detects_no_progress(furu_tmp_root, monkeypatch) -> None:
 def test_run_local_reconciles_stale_in_progress(furu_tmp_root, monkeypatch) -> None:
     task = LeafTask(value=3)
     directory = task._base_furu_dir()
-    directory.mkdir(parents=True, exist_ok=True)
+    furu.StateManager.ensure_internal_dir(directory)
     furu.StateManager.start_attempt_running(
         directory,
         backend="local",

@@ -92,7 +92,7 @@ def create_mock_experiment(
 ) -> Path:
     """Create a mock experiment with specified state (without actually running _create)."""
     directory = furu_obj.furu_dir  # type: ignore[attr-defined]
-    directory.mkdir(parents=True, exist_ok=True)
+    StateManager.ensure_internal_dir(directory)
 
     # Create metadata using the actual metadata system
     metadata = MetadataManager.create_metadata(
@@ -147,7 +147,6 @@ def create_mock_experiment(
     }
 
     state_path = StateManager.get_state_path(directory)
-    state_path.parent.mkdir(parents=True, exist_ok=True)
     state_path.write_text(json.dumps(state, indent=2))
 
     # Write success marker if successful

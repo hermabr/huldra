@@ -303,6 +303,12 @@ class StateManager:
         return directory / cls.INTERNAL_DIR
 
     @classmethod
+    def ensure_internal_dir(cls, directory: Path) -> Path:
+        internal_dir = cls.get_internal_dir(directory)
+        internal_dir.mkdir(parents=True, exist_ok=True)
+        return internal_dir
+
+    @classmethod
     def get_state_path(cls, directory: Path) -> Path:
         return cls.get_internal_dir(directory) / cls.STATE_FILE
 
@@ -366,7 +372,6 @@ class StateManager:
     @classmethod
     def _write_state_unlocked(cls, directory: Path, state: _FuruState) -> None:
         state_path = cls.get_state_path(directory)
-        state_path.parent.mkdir(parents=True, exist_ok=True)
         tmp_path = state_path.with_suffix(".tmp")
         tmp_path.write_text(json.dumps(state.model_dump(mode="json"), indent=2))
         os.replace(tmp_path, state_path)
@@ -385,7 +390,6 @@ class StateManager:
     @classmethod
     def try_lock(cls, lock_path: Path) -> int | None:
         try:
-            lock_path.parent.mkdir(parents=True, exist_ok=True)
             fd = os.open(lock_path, os.O_CREAT | os.O_EXCL | os.O_RDWR, 0o644)
             payload = {
                 "pid": os.getpid(),
@@ -510,14 +514,12 @@ class StateManager:
             "host": socket.gethostname(),
             **event,
         }
-        path.parent.mkdir(parents=True, exist_ok=True)
         with path.open("a", encoding="utf-8") as f:
             f.write(json.dumps(enriched) + "\n")
 
     @classmethod
     def write_success_marker(cls, directory: Path, *, attempt_id: str) -> None:
         marker = cls.get_success_marker_path(directory)
-        marker.parent.mkdir(parents=True, exist_ok=True)
         payload = {"attempt_id": attempt_id, "created_at": cls._iso_now()}
         tmp = marker.with_suffix(".tmp")
         tmp.write_text(json.dumps(payload, indent=2))

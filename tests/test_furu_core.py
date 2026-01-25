@@ -79,7 +79,7 @@ def test_exists_reflects_success_state(furu_tmp_root) -> None:
 def test_get_recovers_from_expired_running_lease(furu_tmp_root) -> None:
     obj = Dummy()
     directory = obj._base_furu_dir()
-    directory.mkdir(parents=True, exist_ok=True)
+    furu.StateManager.ensure_internal_dir(directory)
 
     expired = (
         datetime.datetime.now(datetime.timezone.utc) - datetime.timedelta(seconds=60)
@@ -130,13 +130,12 @@ def test_get_waits_until_lease_expires_then_recovers(
 ) -> None:
     obj = Dummy()
     directory = obj._base_furu_dir()
-    directory.mkdir(parents=True, exist_ok=True)
+    furu.StateManager.ensure_internal_dir(directory)
 
     # Simulate another process holding the compute lock, but with a lease that will expire.
     lock_path = furu.StateManager.get_lock_path(
         directory, furu.StateManager.COMPUTE_LOCK
     )
-    lock_path.parent.mkdir(parents=True, exist_ok=True)
     lock_path.write_text(
         json.dumps(
             {

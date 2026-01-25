@@ -894,7 +894,7 @@ def test_run_slurm_pool_stale_in_progress_raises(
 ) -> None:
     root = PoolTask(value=1)
     directory = root._base_furu_dir()
-    directory.mkdir(parents=True, exist_ok=True)
+    furu.StateManager.ensure_internal_dir(directory)
     furu.StateManager.start_attempt_running(
         directory,
         backend="submitit",

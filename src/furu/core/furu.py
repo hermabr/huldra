@@ -437,6 +437,7 @@ class Furu[T](ABC):
                         f"required={required!r} != worker={ctx.spec_key!r} (v1 exact match)"
                     )
 
+                StateManager.ensure_internal_dir(directory)
                 status, created_here, result = self._run_locally(
                     start_time=time.time(),
                     allow_failed=FURU_CONFIG.retry_failed,
@@ -503,7 +504,6 @@ class Furu[T](ABC):
             with enter_holder(self):
                 start_time = time.time()
                 base_dir = self._base_furu_dir()
-                base_dir.mkdir(parents=True, exist_ok=True)
                 directory = base_dir
                 migration = self._alias_record(base_dir)
                 alias_active = False
@@ -622,6 +622,8 @@ class Furu[T](ABC):
                 )
 
                 if decision != "success->load":
+                    if decision == "create":
+                        StateManager.ensure_internal_dir(directory)
                     write_separator()
                     logger.debug(
                         "get %s %s %s (%s)",
@@ -852,6 +854,7 @@ class Furu[T](ABC):
     ) -> SubmititJob | None:
         """Submit job once without waiting (fire-and-forget mode)."""
         logger = get_logger()
+        StateManager.ensure_internal_dir(directory)
         self._reconcile(directory, adapter=adapter)
         state = StateManager.read_state(directory)
         attempt = state.attempt
@@ -972,7 +975,7 @@ class Furu[T](ABC):
             )
             try:
                 directory = self._base_furu_dir()
-                directory.mkdir(parents=True, exist_ok=True)
+                StateManager.ensure_internal_dir(directory)
                 always_rerun = self._always_rerun()
                 needs_success_invalidation = False
                 if not always_rerun:

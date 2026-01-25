@@ -265,7 +265,6 @@ class MetadataManager:
     def write_metadata(cls, metadata: FuruMetadata, directory: Path) -> None:
         """Write metadata to file."""
         metadata_path = cls.get_metadata_path(directory)
-        metadata_path.parent.mkdir(parents=True, exist_ok=True)
         metadata_path.write_text(
             json.dumps(
                 metadata.model_dump(mode="json"),

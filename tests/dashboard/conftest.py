@@ -160,7 +160,7 @@ def create_experiment_from_furu(
     """
     # Get the furu_dir from the object (uses real path computation)
     directory = furu_obj.furu_dir  # type: ignore[attr-defined]
-    directory.mkdir(parents=True, exist_ok=True)
+    StateManager.ensure_internal_dir(directory)
 
     # Create metadata using the actual metadata system
     metadata = MetadataManager.create_metadata(
@@ -216,7 +216,6 @@ def create_experiment_from_furu(
     }
 
     state_path = StateManager.get_state_path(directory)
-    state_path.parent.mkdir(parents=True, exist_ok=True)
     state_path.write_text(json.dumps(state, indent=2))
 
     # Write success marker if successful
@@ -323,7 +322,7 @@ def _create_populated_experiments(root: Path) -> None:
     # Create an alias dataset that points back to dataset1
     dataset_alias = PrepareDataset(name="mnist", version="v2")
     alias_dir = dataset_alias.furu_dir
-    alias_dir.mkdir(parents=True, exist_ok=True)
+    StateManager.ensure_internal_dir(alias_dir)
     MetadataManager.write_metadata(
         MetadataManager.create_metadata(dataset_alias, alias_dir, ignore_diff=True),
         alias_dir,
@@ -349,7 +348,7 @@ def _create_populated_experiments(root: Path) -> None:
 
     dataset_alias_second = PrepareDataset(name="mnist", version="v4")
     alias_second_dir = dataset_alias_second.furu_dir
-    alias_second_dir.mkdir(parents=True, exist_ok=True)
+    StateManager.ensure_internal_dir(alias_second_dir)
     MetadataManager.write_metadata(
         MetadataManager.create_metadata(
             dataset_alias_second,
@@ -379,7 +378,7 @@ def _create_populated_experiments(root: Path) -> None:
     # Add a moved dataset entry for filter tests
     moved_dataset = PrepareDataset(name="mnist", version="v3")
     moved_dir = moved_dataset.furu_dir
-    moved_dir.mkdir(parents=True, exist_ok=True)
+    StateManager.ensure_internal_dir(moved_dir)
     MetadataManager.write_metadata(
         MetadataManager.create_metadata(moved_dataset, moved_dir, ignore_diff=True),
         moved_dir,

@@ -123,7 +123,8 @@ class _FuruContextFileHandler(logging.Handler):
         message = self.format(record)
 
         directory = current_log_dir()
-        directory.mkdir(parents=True, exist_ok=True)
+        if directory.name != ".furu":
+            directory.mkdir(parents=True, exist_ok=True)
 
         log_path = directory / "furu.log"
         with _FURU_LOG_LOCK:
@@ -317,7 +318,8 @@ def write_separator(line: str = "------------------") -> Path:
     directory = current_log_dir()
     log_path = directory / "furu.log"
 
-    directory.mkdir(parents=True, exist_ok=True)
+    if directory.name != ".furu":
+        directory.mkdir(parents=True, exist_ok=True)
 
     with _FURU_LOG_LOCK:
         with log_path.open("a", encoding="utf-8") as fp:

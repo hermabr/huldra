@@ -42,7 +42,7 @@ def test_build_plan_classifies_statuses(furu_tmp_root) -> None:
 
     in_progress = Task(name="in-progress")
     directory = in_progress._base_furu_dir()
-    directory.mkdir(parents=True, exist_ok=True)
+    furu.StateManager.ensure_internal_dir(directory)
     furu.StateManager.start_attempt_queued(
         directory,
         backend="local",
@@ -78,7 +78,7 @@ def test_build_plan_prunes_completed_subgraphs(furu_tmp_root) -> None:
 def test_build_plan_treats_validation_error_as_missing(furu_tmp_root, caplog) -> None:
     task = InvalidValidateTask(name="bad")
     directory = task._base_furu_dir()
-    directory.mkdir(parents=True, exist_ok=True)
+    furu.StateManager.ensure_internal_dir(directory)
     attempt_id = furu.StateManager.start_attempt_running(
         directory,
         backend="local",
@@ -98,7 +98,7 @@ def test_build_plan_treats_validation_error_as_missing(furu_tmp_root, caplog) ->
 def test_build_plan_logs_unexpected_validate_error(furu_tmp_root, caplog) -> None:
     task = ExplodingValidateTask(name="boom")
     directory = task._base_furu_dir()
-    directory.mkdir(parents=True, exist_ok=True)
+    furu.StateManager.ensure_internal_dir(directory)
     attempt_id = furu.StateManager.start_attempt_running(
         directory,
         backend="local",
@@ -129,7 +129,7 @@ def test_build_plan_marks_failed_attempts(furu_tmp_root, monkeypatch) -> None:
     monkeypatch.setattr(furu.FURU_CONFIG, "retry_failed", False)
     failed = Task(name="failed")
     directory = failed._base_furu_dir()
-    directory.mkdir(parents=True, exist_ok=True)
+    furu.StateManager.ensure_internal_dir(directory)
     attempt_id = furu.StateManager.start_attempt_running(
         directory,
         backend="local",
@@ -160,7 +160,7 @@ def test_build_plan_does_not_log_exists(furu_tmp_root, caplog) -> None:
 def test_reconcile_in_progress_skips_fresh_attempts(furu_tmp_root) -> None:
     task = Task(name="in-progress")
     directory = task._base_furu_dir()
-    directory.mkdir(parents=True, exist_ok=True)
+    furu.StateManager.ensure_internal_dir(directory)
     furu.StateManager.start_attempt_running(
         directory,
         backend="local",
@@ -183,7 +183,7 @@ def test_reconcile_in_progress_missing_timestamps_not_immediately_stale(
     monkeypatch.setattr(furu.FURU_CONFIG, "retry_failed", True)
     task = Task(name="missing-timestamps")
     directory = task._base_furu_dir()
-    directory.mkdir(parents=True, exist_ok=True)
+    furu.StateManager.ensure_internal_dir(directory)
     furu.StateManager.start_attempt_running(
         directory,
         backend="local",
@@ -213,7 +213,7 @@ def test_reconcile_in_progress_stale_attempt_preempted(
     monkeypatch.setattr(furu.FURU_CONFIG, "retry_failed", True)
     task = Task(name="stale-attempt")
     directory = task._base_furu_dir()
-    directory.mkdir(parents=True, exist_ok=True)
+    furu.StateManager.ensure_internal_dir(directory)
     furu.StateManager.start_attempt_running(
         directory,
         backend="local",
