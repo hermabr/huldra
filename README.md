@@ -440,8 +440,13 @@ The `/api/experiments` endpoint supports:
 |----------|---------|-------------|
 | `FURU_PATH` | `<project>/furu-data` | Base storage directory for non-versioned artifacts |
 | `FURU_VERSION_CONTROLLED_PATH` | `<project>/furu-data/artifacts` | Override version-controlled storage root |
+| `FURU_SUBMITIT_PATH` | `<FURU_PATH>/submitit` | Override submitit logs root |
 | `FURU_LOG_LEVEL` | `INFO` | Console verbosity (`DEBUG`, `INFO`, `WARNING`, `ERROR`) |
+| `FURU_RICH_UNCAUGHT_TRACEBACKS` | `true` | Use Rich for exception formatting (set `0` to disable) |
 | `FURU_IGNORE_DIFF` | `false` | Skip embedding git diff in metadata |
+| `FURU_REQUIRE_GIT` | `true` | Require git metadata; set `0` to allow missing repo |
+| `FURU_REQUIRE_GIT_REMOTE` | `true` | Require git remote `origin`; set `0` to allow missing origin |
+| `FURU_CACHE_METADATA` | `5m` | Cache git metadata (`never`, `forever`, or duration like `5m`) |
 | `FURU_ALWAYS_RERUN` | `""` | Comma-separated class qualnames to always rerun (use `ALL` to bypass cache globally; cannot combine with other entries; entries must be importable) |
 | `FURU_RETRY_FAILED` | `true` | Retry failed artifacts by default (set to `0` to keep failures sticky) |
 | `FURU_MAX_COMPUTE_RETRIES` | `3` | Maximum compute retries per node after the first failure |
@@ -450,12 +455,19 @@ The `/api/experiments` endpoint supports:
 | `FURU_WAIT_LOG_EVERY_SECS` | `10` | Interval between "waiting" log messages |
 | `FURU_STALE_AFTER_SECS` | `1800` | Consider running jobs stale after this duration |
 | `FURU_LEASE_SECS` | `120` | Compute lock lease duration |
-| `FURU_HEARTBEAT_SECS` | `lease/3` | Heartbeat interval for running jobs |
+| `FURU_HEARTBEAT_SECS` | `lease/3` | Heartbeat interval for running jobs (min 1s) |
 | `FURU_PREEMPT_MAX` | `5` | Maximum submitit requeues on preemption |
 | `FURU_CANCELLED_IS_PREEMPTED` | `false` | Treat SLURM CANCELLED as preempted |
-| `FURU_RICH_UNCAUGHT_TRACEBACKS` | `true` | Use Rich for exception formatting |
+| `SLURM_JOB_ID` | unset | Read-only; set by Slurm to record job id and enable submitit context |
 
 Local `.env` files are loaded automatically if `python-dotenv` is installed.
+
+### Test and CI Environment Variables
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `FURU_E2E_DATA_DIR` | unset | Required for Playwright e2e runs; used as the data root and to set `FURU_PATH` |
+| `CI` | unset | Enables CI-friendly Playwright settings (retries, single worker, traces, screenshots, video) |
 
 ### Programmatic Configuration
 

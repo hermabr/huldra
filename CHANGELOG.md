@@ -8,6 +8,7 @@
 - Create each artifact `.furu` directory once during computation setup to avoid repeated mkdirs.
 - Skip `state.json` rewrites for no-op state updates (including heartbeat mismatches).
 - Use non-hidden lock filenames inside `.furu` (`compute.lock`, `submit.lock`, `state.lock`).
+- Document all environment variables in the README.
 
 ## v0.0.4
 
