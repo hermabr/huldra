@@ -884,9 +884,7 @@ class Furu[T](ABC):
         attempt_id: str | None = None
         try:
             # Create metadata
-            metadata = MetadataManager.create_metadata(
-                self, directory, ignore_diff=FURU_CONFIG.ignore_git_diff
-            )
+            metadata = MetadataManager.create_metadata(self, directory)
             MetadataManager.write_metadata(metadata, directory)
 
             env_info = MetadataManager.collect_environment_info()
@@ -1030,11 +1028,7 @@ class Furu[T](ABC):
                         stage = "metadata"
                         try:
                             # Refresh metadata (now safe - attempt is already recorded)
-                            metadata = MetadataManager.create_metadata(
-                                self,
-                                directory,
-                                ignore_diff=FURU_CONFIG.ignore_git_diff,
-                            )
+                            metadata = MetadataManager.create_metadata(self, directory)
                             MetadataManager.write_metadata(metadata, directory)
 
                             # Set up signal handlers
@@ -1220,9 +1214,7 @@ class Furu[T](ABC):
                 stage = "metadata"
                 try:
                     # Create metadata (now safe - attempt is already recorded)
-                    metadata = MetadataManager.create_metadata(
-                        self, directory, ignore_diff=FURU_CONFIG.ignore_git_diff
-                    )
+                    metadata = MetadataManager.create_metadata(self, directory)
                     MetadataManager.write_metadata(metadata, directory)
 
                     # Set up preemption handler

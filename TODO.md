@@ -45,8 +45,8 @@
 ## Execution & Compute
 
 - [ ] Performance
-    - [ ] One option for ignoring FURU_RECORD_GIT="ignore|cached|uncached" (cached should be default). need to make sure cached works across runners/submitit
-        - [ ] This should probably include everything git, so that i don't have a different flag for if its okay that the git remote doesn't exist
+    - [x] One option for recording git: FURU_RECORD_GIT="ignore|cached|uncached" (cached is default).
+        - [x] Include git-remote opt-out with FURU_ALLOW_NO_GIT_ORIGIN.
     - [ ] Only make the furu_dir once
     - [ ] Decide everywhere I might want to use cached_property/cache
     - [ ] Make actual benchmarking tests

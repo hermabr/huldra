@@ -443,10 +443,8 @@ The `/api/experiments` endpoint supports:
 | `FURU_SUBMITIT_PATH` | `<FURU_PATH>/submitit` | Override submitit logs root |
 | `FURU_LOG_LEVEL` | `INFO` | Console verbosity (`DEBUG`, `INFO`, `WARNING`, `ERROR`) |
 | `FURU_RICH_UNCAUGHT_TRACEBACKS` | `true` | Use Rich for exception formatting (set `0` to disable) |
-| `FURU_IGNORE_DIFF` | `false` | Skip embedding git diff in metadata |
-| `FURU_REQUIRE_GIT` | `true` | Require git metadata; set `0` to allow missing repo |
-| `FURU_REQUIRE_GIT_REMOTE` | `true` | Require git remote `origin`; set `0` to allow missing origin |
-| `FURU_CACHE_METADATA` | `5m` | Cache git metadata (`never`, `forever`, or duration like `5m`) |
+| `FURU_RECORD_GIT` | `cached` | Git provenance capture: `ignore` skips git metadata, `cached` records once per process, `uncached` records every time |
+| `FURU_ALLOW_NO_GIT_ORIGIN` | `false` | Allow missing git `origin` when recording git metadata (invalid with `FURU_RECORD_GIT=ignore`) |
 | `FURU_ALWAYS_RERUN` | `""` | Comma-separated class qualnames to always rerun (use `ALL` to bypass cache globally; cannot combine with other entries; entries must be importable) |
 | `FURU_RETRY_FAILED` | `true` | Retry failed artifacts by default (set to `0` to keep failures sticky) |
 | `FURU_MAX_COMPUTE_RETRIES` | `3` | Maximum compute retries per node after the first failure |
@@ -466,6 +464,7 @@ Local `.env` files are loaded automatically if `python-dotenv` is installed.
 
 | Variable | Default | Description |
 |----------|---------|-------------|
+| `FURU_DASHBOARD_DEV_DATA_DIR` | unset | Override data dir for `make dashboard-dev` (defaults to a temp dir) |
 | `FURU_E2E_DATA_DIR` | unset | Required for Playwright e2e runs; used as the data root and to set `FURU_PATH` |
 | `CI` | unset | Enables CI-friendly Playwright settings (retries, single worker, traces, screenshots, video) |
 
@@ -480,7 +479,7 @@ furu.set_furu_root(Path("/my/storage"))
 root = furu.get_furu_root()
 
 # Access config directly
-furu.FURU_CONFIG.ignore_git_diff = True
+furu.FURU_CONFIG.record_git = "uncached"
 furu.FURU_CONFIG.poll_interval = 5.0
 ```
 

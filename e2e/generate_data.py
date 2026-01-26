@@ -169,7 +169,7 @@ def generate_test_data(data_root: Path) -> None:
 
     # Configure Furu to use our data root
     FURU_CONFIG.base_root = data_root
-    FURU_CONFIG.ignore_git_diff = True
+    FURU_CONFIG.record_git = "ignore"
 
     # Create experiments with various states
 

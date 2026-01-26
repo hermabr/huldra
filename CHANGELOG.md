@@ -9,6 +9,7 @@
 - Skip `state.json` rewrites for no-op state updates (including heartbeat mismatches).
 - Use non-hidden lock filenames inside `.furu` (`compute.lock`, `submit.lock`, `state.lock`).
 - Document all environment variables in the README.
+- Consolidate git metadata env config into `FURU_RECORD_GIT` and `FURU_ALLOW_NO_GIT_ORIGIN`.
 
 ## v0.0.4
 
