@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## v0.0.5
 
 - Speed up state/plan checks with SUCCESS markers,
   cached `furu_hash`/`furu_dir`, and fewer writes/mkdirs.
