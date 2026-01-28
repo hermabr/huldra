@@ -278,7 +278,7 @@ class Furu[T](ABC):
         root = FURU_CONFIG.get_root(self.version_controlled)
         return root / self.__class__._namespace() / self.furu_hash
 
-    @property
+    @cached_property
     def furu_dir(self: Self) -> Path:
         """Get the directory for this Furu object."""
         directory = self._base_furu_dir()
