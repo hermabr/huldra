@@ -486,7 +486,8 @@ furu.FURU_CONFIG.poll_interval = 5.0
 
 ### Testing with pytest
 
-Use the built-in pytest fixture to isolate Furu storage in tests:
+Use the built-in pytest fixture to isolate Furu storage in tests (each test gets
+its own temp root, so identical configs in separate tests will not collide):
 
 ```python
 # conftest.py
@@ -494,9 +495,30 @@ pytest_plugins = ["furu.testing"]
 ```
 
 ```python
-def test_pipeline(furu_tmp_root):
-    obj = TrainModel(lr=1e-3, steps=100)
-    result = obj.get()
+# test_pipeline.py
+import json
+from pathlib import Path
+
+import furu
+
+
+class TrainModel(furu.Furu[Path]):
+    lr: float = furu.chz.field(default=1e-3)
+
+    def _create(self) -> Path:
+        path = self.furu_dir / "metrics.json"
+        path.write_text(json.dumps({"lr": self.lr}))
+        return path
+
+    def _load(self) -> Path:
+        return self.furu_dir / "metrics.json"
+
+
+def test_create_and_reload(furu_tmp_root):
+    obj = TrainModel(lr=1e-3)
+    first = obj.get()
+    second = obj.get()
+    assert first.read_text() == second.read_text()
     assert (furu_tmp_root / "data").exists()
 ```
 
