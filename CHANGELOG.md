@@ -4,6 +4,8 @@
 
 - Clarify missing git origin guidance with the option to disable git metadata via
   `FURU_RECORD_GIT=ignore`.
+- Add a pytest-friendly test helper (`furu.testing`) for isolated Furu roots.
+- Add `furu.testing.override_results` to stub dependency outputs in tests.
 
 ## v0.0.5
 
