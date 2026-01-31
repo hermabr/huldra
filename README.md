@@ -522,6 +522,37 @@ def test_create_and_reload(furu_tmp_root):
     assert (furu_tmp_root / "data").exists()
 ```
 
+Override specific dependencies when you want to skip deeper chains:
+
+```python
+from furu.testing import override_results
+
+
+class Normalize(furu.Furu[str]):
+    def _create(self) -> str:
+        return "normalized"
+
+    def _load(self) -> str:
+        return "normalized"
+
+
+class TrainModel(furu.Furu[str]):
+    normalizer: Normalize = furu.chz.field(default_factory=Normalize)
+
+    def _create(self) -> str:
+        return f"trained:{self.normalizer.get()}"
+
+    def _load(self) -> str:
+        return "trained"
+
+
+def test_override_dependency(furu_tmp_root):
+    normalizer = Normalize()
+    model = TrainModel(normalizer=normalizer)
+    with override_results({normalizer: "stub"}):
+        assert model.get() == "trained:stub"
+```
+
 ### Class-Level Options
 
 ```python

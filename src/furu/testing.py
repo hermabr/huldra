@@ -1,4 +1,4 @@
-from collections.abc import Generator
+from collections.abc import Generator, Mapping
 from contextlib import contextmanager
 from dataclasses import dataclass
 from pathlib import Path
@@ -6,6 +6,8 @@ from pathlib import Path
 import pytest
 
 from .config import FURU_CONFIG, RecordGitMode
+from .core import Furu
+from .runtime.overrides import OverrideValue, override_furu_hashes
 
 
 @dataclass(frozen=True)
@@ -82,6 +84,19 @@ def furu_test_env(base_root: Path) -> Generator[Path, None, None]:
         yield root
     finally:
         snapshot.restore()
+
+
+@contextmanager
+def override_results(
+    overrides: Mapping[Furu, OverrideValue],
+) -> Generator[None, None, None]:
+    """Override specific Furu results within the context.
+
+    Overrides are keyed by furu_hash, so identical configs share a stub.
+    """
+    hash_overrides = {obj.furu_hash: value for obj, value in overrides.items()}
+    with override_furu_hashes(hash_overrides):
+        yield
 
 
 @pytest.fixture()

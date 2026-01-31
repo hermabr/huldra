@@ -1,7 +1,27 @@
 from pathlib import Path
 
+import pytest
+
 import furu
-from furu.testing import furu_test_env
+from furu.testing import furu_test_env, override_results
+
+
+class _DependencyStub(furu.Furu[str]):
+    def _create(self) -> str:
+        raise RuntimeError("dependency should be overridden")
+
+    def _load(self) -> str:
+        raise RuntimeError("dependency should be overridden")
+
+
+class _ParentPipeline(furu.Furu[str]):
+    dependency: _DependencyStub = furu.chz.field(default_factory=_DependencyStub)
+
+    def _create(self) -> str:
+        return f"parent:{self.dependency.get()}"
+
+    def _load(self) -> str:
+        return "parent:loaded"
 
 
 def test_furu_test_env_sets_and_restores_config(tmp_path: Path) -> None:
@@ -57,3 +77,15 @@ def test_furu_test_env_sets_and_restores_config(tmp_path: Path) -> None:
 def test_furu_tmp_root_fixture(furu_tmp_root: Path) -> None:
     assert furu.FURU_CONFIG.base_root == furu_tmp_root
     assert furu.get_furu_root() == furu_tmp_root / "data"
+
+
+def test_override_results_skips_dependency_chain(furu_tmp_root: Path) -> None:
+    dependency = _DependencyStub()
+    parent = _ParentPipeline(dependency=dependency)
+
+    with override_results({dependency: "stubbed"}):
+        assert dependency.exists() is True
+        assert parent.get() == "parent:stubbed"
+
+    with pytest.raises(RuntimeError, match="dependency should be overridden"):
+        dependency.get()
